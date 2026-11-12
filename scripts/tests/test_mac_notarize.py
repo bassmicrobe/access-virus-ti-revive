@@ -100,6 +100,7 @@ elif tool == "spctl" and os.environ.get("MOCK_SPCTL_FAIL"): sys.exit(3)
 '''
 
 
+@unittest.skipIf(os.name == "nt", "macOS packaging regressions use a POSIX shell and executable mock tools")
 class MacNotarizeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix="tirevive-notary-test-")
