@@ -8,7 +8,7 @@ This development fork focuses on AU parameter/state consistency, precompiled rea
 
 ## Requirements and use
 
-A [verified universal development package](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43161935995) passed Developer ID signing, Apple notarization (Accepted, no issues), stapling and Gatekeeper assessment. The [notarization guide](docs/fork/NOTARIZATION.md) records its scope, provenance and repeatable CI/local setup.
+A [verified universal development package](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43165385989) passed Developer ID signing, Apple notarization (Accepted, no issues), stapling and Gatekeeper assessment. The [notarization guide](docs/fork/NOTARIZATION.md) records its scope, provenance and repeatable CI/local setup.
 
 You need a physical Virus TI-family synth, your own Access Virus TI Software Suite installer and an AU/VST3 host. macOS builds require 14.4 or later, including macOS 27. **macOS 27.2 / Apple Silicon has been runtime-tested**; see the [macOS validation guide](docs/fork/MACOS.md) for the exact scope. The plug-in is **TI Revive Virus Control**, or **TI Revive Virus Control (Snow)**. Audio flows from the hardware over USB through the plug-in into the host. The synth's DSP still generates the sound.
 

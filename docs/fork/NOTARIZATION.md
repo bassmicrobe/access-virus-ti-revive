@@ -2,9 +2,9 @@
 
 ## 今回の結果（2026-11-12）
 
-[実公証のCI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43161935995)が成功しました。[検証記録とSHA-256](measurements/notarization.json)を保存しています。
+[実公証のCI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43165385989)が成功しました。[検証記録とSHA-256](measurements/installed-polar.json)を保存しています。
 
-- 対象ソース: `f27645c070c3af3b6a8638d76bb3f5ec3d8830dc`、版0.8.41のfork開発ビルド。
+- 対象ソース: `79916a17d73c9a8d8e469fb9e8d3197c9883e709`、版0.8.41のfork開発ビルド。
 - Appleの結果: **Accepted、警告0・エラー0**。
 - AU内のVST3を含む8個のMach-Oと6個のbundleをDeveloper ID Applicationで署名。main executableにはHardened Runtime、署名にはsecure timestampを付与。
 - 最終 `.pkg` はDeveloper ID Installerで署名。公証チケットのstaple／validate、Gatekeeperのインストール判定に成功。
@@ -30,8 +30,8 @@
 ```sh
 gh workflow run mac-notarize.yml \
   --repo bassmicrobe/access-virus-ti-revive --ref main \
-  -f build_run_id=43156396159 \
-  -f source_sha=f27645c070c3af3b6a8638d76bb3f5ec3d8830dc
+  -f build_run_id=43164735413 \
+  -f source_sha=79916a17d73c9a8d8e469fb9e8d3197c9883e709
 ```
 
 署名鍵を読み込む前に、同じforkの成功済み `build.yml`、mainの祖先であるソースSHA、artifactの出所、GitHubのSHA-256を検証します。PR由来のビルドは署名しません。署名ツール自体は実行時のmainコミットから取得します。
@@ -92,7 +92,7 @@ xcrun stapler validate 'TI Revive.pkg'
 spctl --assess --type install --verbose=4 'TI Revive.pkg'
 ```
 
-公証済みZIPは、認証前の開発用ZIPとは別ファイルです。プラグインの同名コピーを複数の検索フォルダへ配置せず、[READMEの導入・復元手順](../../README.md#安定版へ戻す)に従います。現在このMacにインストールされている安定版を、この公証作業だけで置き換えることはありません。
+公証済みZIPは、認証前の開発用ZIPとは別ファイルです。プラグインの同名コピーを複数の検索フォルダへ配置せず、[READMEの導入・復元手順](../../README.md#安定版へ戻す)に従います。公証とインストールは別工程です。続く実機確認で、このMacには公証済みfork版0.8.41を導入し、AU／VST3のUSB音声、エディタ、AU状態保存・再読込、保存済み512音色の整合性を確認しました。[導入記録](measurements/installed-polar.json)を参照してください。
 
 ## Apple公式資料
 

@@ -32,7 +32,7 @@ Accessのバイナリ、XML、スキン画像、ROMバンク、ファームウ�
 
 ## Macで使う
 
-Developer ID署名・Apple公証（Accepted、警告0）・staple・Gatekeeper検証を完了した[検証ビルド](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43161935995)があります。arm64／IntelのUniversalパッケージです。[公証対象・再実行・CI設定](docs/fork/NOTARIZATION.md)を参照してください。
+Developer ID署名・Apple公証（Accepted、警告0）・staple・Gatekeeper検証を完了した[検証ビルド](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43165385989)があります。arm64／IntelのUniversalパッケージです。[公証対象・再実行・CI設定](docs/fork/NOTARIZATION.md)を参照してください。
 
 1. ビルド元と版を確認します。上流安定版は[上流Releases](https://github.com/derpsn/access-virus-ti-revive/releases)、このforkの公開バイナリは[このforkのReleases](https://github.com/bassmicrobe/access-virus-ti-revive/releases)にあるものだけです。リリースがなければ下記の手順でソースからビルドします。
 2. パッケージを使う場合はTI Reviveをインストールし、同梱の **Set up Access Virus TI files.command** に所有するAccess `.pkg`を指定します。Accessインストーラ自体を起動する必要はありません。最後に `Remove original Access plugins? [Y/n]` と聞かれたら、旧プラグインを残す場合は `N` を選びます。この操作は退避ではなく削除です。

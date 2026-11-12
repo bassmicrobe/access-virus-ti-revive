@@ -1,0 +1,110 @@
+{
+  "date_jst": "2026-11-12",
+  "installed": true,
+  "version": "0.8.41",
+  "repository": "https://github.com/bassmicrobe/access-virus-ti-revive",
+  "source_commit": "79916a17d73c9a8d8e469fb9e8d3197c9883e709",
+  "build_ci": "https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43164735413",
+  "notary_ci": "https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43165385989",
+  "notary": {
+    "status": "Accepted",
+    "submission_id": "36fcf29b-22f9-4315-b16a-f03d74ec8edb",
+    "clean": true,
+    "zip_sha256": "fdbd093236e6946064c0851de6b1fc3718de0d7985fb47479bda3ca4183ec88d",
+    "staple_verified": true,
+    "gatekeeper_install_assessment": true
+  },
+  "host": {
+    "chip": "Apple M1 Max",
+    "architecture": "arm64",
+    "os": "macOS27.2"
+  },
+  "device": {
+    "model": "TI POLAR (user identified)",
+    "usb_vid_pid": "133e:0815",
+    "os": "5.1.7.00"
+  },
+  "installation": {
+    "previous_version": "0.8.40",
+    "rollback_backup_created": true,
+    "payload_groups_match": 5,
+    "receipt_version": "0.8.41",
+    "signed_mach_o_files": 8,
+    "verified_architecture_slices": 16,
+    "signed_bundles": 6,
+    "hardened_main_executables": 3,
+    "installer_forces_global_au_refresh": false
+  },
+  "tests": {
+    "connected_cli_info": "pass",
+    "control_center_launch_and_device_ready": "pass",
+    "au_initialize": "pass",
+    "au_parameter_edit_restore": "pass: parameter153,1 ->0.992125988 ->1",
+    "au_state_save_close_reopen_restore": "pass (dedicated host, not a DAW project)",
+    "au_audio": {
+      "sample_rate": 44100,
+      "channels": 2,
+      "frames": 176640,
+      "peak": 0.08221435546875,
+      "rms": 0.007170231692517292,
+      "clipped_samples": 0
+    },
+    "vst3_initialize_audio": "pass",
+    "vst3_audio": {
+      "sample_rate": 44100,
+      "duration_seconds": 19.99238095238095,
+      "mono_average_peak": 0.1112060546875,
+      "mono_average_rms": 0.01652161192418554,
+      "onsets_in_last_8_seconds": 8,
+      "steady_window": [
+        12,
+        20
+      ],
+      "onsets_seconds": [
+        12.093061224489796,
+        13.093061224489796,
+        14.09297052154195,
+        15.092879818594104,
+        16.093424036281178,
+        17.092879818594103,
+        18.092879818594103,
+        19.092879818594103
+      ]
+    },
+    "editor_cocoa_render": "pass907x513; visually inspected connected Easy Edit page",
+    "editor_reopen_and_view_lifetime_disposal": "pass;3s post-disposal no crash",
+    "post_test_banks": {
+      "RAM A": {
+        "programs": 128,
+        "matching_backup_cache": 128
+      },
+      "RAM B": {
+        "programs": 128,
+        "matching_backup_cache": 128
+      },
+      "RAM C": {
+        "programs": 128,
+        "matching_backup_cache": 128
+      },
+      "RAM D": {
+        "programs": 128,
+        "matching_backup_cache": 128
+      }
+    },
+    "unchanged_programs": 512,
+    "diagnostic_flags_restored": true
+  },
+  "scope": {
+    "other_plugin_scan_started": false,
+    "daw_launched": false,
+    "stored_bank_writes": false,
+    "firmware_flash_or_os_updates": false,
+    "subjective_speaker_playback_assessed": false,
+    "physical_parameter_echo_assessed": false,
+    "long_running_daw_session_assessed": false
+  },
+  "artifacts": {
+    "usb_audio": "ti-revive-installed-polar-usb-test.wav",
+    "editor": "ti-revive-installed-polar-editor.png"
+  }
+}

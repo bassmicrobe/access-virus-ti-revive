@@ -36,3 +36,21 @@ VTI_NO_SETUP_TIPS=1 build/bin/Release/vti_autest \
 ## English summary
 
 macOS 27 is within the supported OS range (14.4+). Runtime tests were performed on macOS 27.2 / M1 Max, including packaged-AU initialization, offscreen Cocoa rendering, reopen/disposal, and earlier connected-POLAR USB audio/parameter tests. The additional editor test ran while the hardware was disconnected. macOS 27.0/27.1, Intel runtime, full DAW recall and long sessions remain untested. CI package generation uses macos-15; it is distinct from the local macOS 27 runtime validation. No OS-specific compatibility patch was needed for the tested paths.
+
+## インストール済みfork版の実機確認
+
+2026-11-12、このMacに公証済み **0.8.41 / `79916a1`** を導入しました。現行0.8.40を退避し、導入した5グループの全ファイルが公証pkgのpayloadと一致すること、receipt0.8.41、8バイナリ／6バンドルのDeveloper ID署名とUniversal形式を確認しています。
+
+TI POLAR / OS5.1.7.00を接続して、次の試験をインストール先のAU／VST3だけを直接指定して実行しました。
+
+| 試験 | 結果 |
+|---|---|
+| Control Center | 導入したアプリが起動し、Virus found / READYを表示 |
+| AU | 初期化、パラメータ153の小さな変更・復元、状態保存・close/reopen・読込、終了処理すべて成功 |
+| AU USB音声 | 44.1kHzステレオ、176640フレーム、peak0.082214、RMS0.007170、クリッピング0 |
+| VST3 USB音声 | 約20秒の専用ホスト試験で、後半12〜20秒の8音を検出 |
+| エディタ | 接続状態のEasy Edit画面を907×513で描画。再表示・view保持後のAU破棄と3秒のイベント処理も成功 |
+| 保存済み音色 | 試験前後ともRAM A〜D、512/512のフィンガープリントがバックアップ済みキャッシュと一致 |
+| スキャン | インストーラの共有AUレジストラ再起動を削除。DAW、全AU/VST走査、他社プラグインの検査を起動せず実施 |
+
+[数値と署名・CIの記録](measurements/installed-polar.json)を保存しています。音声はWAVに取得した結果であり、スピーカーからの主観評価ではありません。パラメータ検査はAU APIの往復と状態復元で、本体側の独立したパラメータechoは未測定です。DAWプロジェクトの保存・再読込や長時間セッションは別の確認項目です。保存バンク、ファームウェア、Flashへの書き込みは行っていません。診断ログの設定は試験前の状態へ戻しています。
