@@ -120,3 +120,4 @@ Assert-Throws { Remove-TIReviveAccessDriverPackage 'oem123.inf' | Out-Null } 'pn
 Assert-Throws { Remove-TIReviveAccessDriverPackage 'not-a-package' } 'Invalid driver package' 'rejects invalid package arguments'
 
 "PASS: $script:tests Windows device-guard assertions (all PnP/native calls mocked)."
+exit 0 # the deliberately failed native mock leaves LASTEXITCODE set; assertions above decide the test result
