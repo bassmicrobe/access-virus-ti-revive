@@ -5,7 +5,7 @@ This document separates **measurements on this fork**, **prior stable-version ha
 ## Test setup
 
 - Date: 2026-11-12.
-- Apple Silicon MacBook Pro, M1 Max; macOS 27.2.
+- Apple Silicon MacBook Pro, M1 Max; macOS 27.2. Explicit macOS 27 scope and reproducible editor checks are in [MACOS.md](MACOS.md).
 - Access Virus **TI POLAR**, OS 5.1.7.00, USB device 133e:0815.
 - Apple Clang 21.0.0; native arm64 Release build, deployment target 14.4.
 - Dedicated explicit-bundle AU/VST3 hosts. A previous stable-version AU load in Live 11.3.35 succeeded, but the DAW/scanner was then stopped because unrelated products requested authorization. No all-plug-in scan is required for these tests.
@@ -101,3 +101,7 @@ The complete [package build at `f27645c`](https://github.com/bassmicrobe/access-
 A Windows test fixture initially expanded an explicit CRLF into CRCRLF in text mode. It now writes exact binary bytes and verifies those bytes; the production log reader was unchanged. The subsequent complete build above passed. The release job was skipped for this development branch: these are build artifacts, not a published upstream release. The installed local stable version remains 0.8.40.
 
 Windows/Intel/Linux/Snow hardware, long-running DAW sessions, project save/reopen and subjective audio quality remain separate verification targets.
+
+## Additional macOS 27 packaged-AU check
+
+The CI package at `f27645c` was expanded without installation and its AU loaded directly on macOS 27.2 / arm64. Initialization, parameter 153 = 1, rendering with notes disabled, a 907 × 513 offscreen Cocoa capture, editor reopen and disposal while the view outlived the unit all passed. The event loop continued for 3 seconds after disposal without a crash. This extra view test ran with the synth disconnected; its screenshot shows the disconnected-device page. Earlier connected USB audio/parameter tests above were on the same OS. No full DAW scan or new stored-bank/firmware operation was performed. See [the scope and commands](MACOS.md) and [numeric record](measurements/macos27.json).

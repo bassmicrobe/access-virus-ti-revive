@@ -8,7 +8,7 @@ This development fork focuses on AU parameter/state consistency, precompiled rea
 
 ## Requirements and use
 
-You need a physical Virus TI-family synth, your own Access Virus TI Software Suite installer and an AU/VST3 host. macOS builds require 14.4 or later. The plug-in is **TI Revive Virus Control**, or **TI Revive Virus Control (Snow)**. Audio flows from the hardware over USB through the plug-in into the host. The synth's DSP still generates the sound.
+You need a physical Virus TI-family synth, your own Access Virus TI Software Suite installer and an AU/VST3 host. macOS builds require 14.4 or later, including macOS 27. **macOS 27.2 / Apple Silicon has been runtime-tested**; see the [macOS validation guide](docs/fork/MACOS.md) for the exact scope. The plug-in is **TI Revive Virus Control**, or **TI Revive Virus Control (Snow)**. Audio flows from the hardware over USB through the plug-in into the host. The synth's DSP still generates the sound.
 
 No Access binaries, firmware, XML, skins or banks are redistributed here. Setup extracts the required data from the installer you own. Firmware/OS/flash updates are not supported. Plug-in activation changes the current edit buffers; save pending edits and use a disposable project for tests.
 

@@ -38,6 +38,8 @@ Mac library-root and diagnostic-path expectations follow their platform definiti
 
 The top-level native project explicitly enables Objective-C++ on macOS and declares C++23 for the AU target. This fixes the missing `CMAKE_OBJCXX_COMPILE_OBJECT` rule encountered with the Unix Makefiles generator.
 
+The fork explicitly records macOS27 support and local27.2 runtime validation in [MACOS.md](MACOS.md), including packaged-AU editor lifetime checks. No unneeded OS-specific runtime branch is added.
+
 The fork has Japanese and English entry points, keeps the upstream README, separates its measurements from upstream results, and tracks every open upstream issue in [ISSUES.md](ISSUES.md). No Access resources or private test logs are redistributed.
 
 ## Inherited from upstream, not new fork features

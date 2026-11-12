@@ -24,7 +24,7 @@ TI Reviveはderpsnとコントリビュータによる独立プロジェクト�
 ## 必要なもの
 
 - 実機のAccess Virus TI / TI2 / Polar / Keyboard / Snow。機種ごとの検証範囲は[検証記録](docs/fork/PERFORMANCE.md)を参照してください。
-- macOS **14.4以降**。このforkの手元の実機確認はApple Siliconです。Intelの上流ユーザー報告はありますが、このforkでのIntel実機確認とは区別します。
+- macOS **14.4以降（macOS 27対応）**。**macOS 27.2 / Apple Siliconで動作確認済み**です。[macOS対応範囲・確認手順](docs/fork/MACOS.md)を参照してください。Intelの上流ユーザー報告はありますが、このforkでのIntel実機確認とは区別します。
 - 自分で所有するAccess **Virus TI Software Suite**インストーラ。Macは `.pkg`、Windows / Linuxは64bit `.msi`。上流の[配布案内](https://www.virus.info/downloads)を利用します。
 - AUまたはVST3を扱えるDAW。プラグイン名は **TI Revive Virus Control**、Snow用は **TI Revive Virus Control (Snow)** です。
 

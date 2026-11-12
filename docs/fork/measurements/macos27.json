@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-12",
+  "package_source_commit": "f27645c",
+  "runtime": {
+    "os": "macOS",
+    "version": "27.2",
+    "build": "26B123",
+    "architecture": "arm64",
+    "hardware": "M1 Max"
+  },
+  "packaged_au": {
+    "initialization_status": 0,
+    "parameter_153": {
+      "expected": 1,
+      "observed": 1,
+      "status": 0
+    },
+    "render_status": 0,
+    "notes_sent": false,
+    "view_pixels": [
+      907,
+      513
+    ],
+    "view_capture": "passed; manually inspected PNG",
+    "reopen": "passed",
+    "dispose_with_view_alive": "passed",
+    "post_dispose_event_loop_seconds": 3,
+    "crash": false,
+    "device_connected_during_additional_editor_test": false
+  },
+  "earlier_same_os_connected_tests": [
+    "fork AU USB audio",
+    "small AU parameter edit and local restore",
+    "VST3 normal and experimental low-latency audio",
+    "512 unchanged stored-bank fingerprints"
+  ],
+  "limitations": [
+    "27.0 and 27.1 not individually runtime-tested",
+    "Intel runtime not tested",
+    "No full DAW scan, long-running DAW session or project save/reopen test",
+    "Offscreen Cocoa view, not every DAW window embedding path"
+  ],
+  "ci_runtime": "macos-15 package generation; local runtime verification on27.2"
+}
