@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "accepted",
+  "clean": true,
+  "input_sha256": "2b3baafb36af251198fe7c018eba4ed8f986b87cc2f6eb863536340cdc6f303d",
+  "source_sha": "f27645c070c3af3b6a8638d76bb3f5ec3d8830dc",
+  "code_signing": {
+    "mach_o_files": 8,
+    "bundles": 6,
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "developer_id_application": true,
+    "main_hardened_runtime": true,
+    "timestamp": true,
+    "bundle_metadata_preserved": true
+  },
+  "installer_signing": {
+    "developer_id_installer": true,
+    "root_ownership": true,
+    "scripts_and_distribution_preserved": true
+  },
+  "notary": {
+    "submission_id": "0d878b0c-032f-4c78-b738-0ab276ba2c10",
+    "status": "Accepted",
+    "issue_counts": {}
+  },
+  "signed_distribution_guide": true,
+  "output_sha256": "8ba6f11228fc02e51e765efb23cf16e3ab14121a5f13bddb526dcaeeadd4a411",
+  "ticket_stapled": true,
+  "gatekeeper_install_assessment": true,
+  "phase": "complete",
+  "ci_url": "https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43161935995",
+  "provenance": {
+    "repository": "bassmicrobe/access-virus-ti-revive",
+    "build_run_id": 43156396159,
+    "source_sha": "f27645c070c3af3b6a8638d76bb3f5ec3d8830dc",
+    "artifact_id": 13915634451,
+    "artifact_digest": "sha256:4137d32e298ca40188fc7ef4eba2074fa22d46224850596facc139ca1ba11e99",
+    "input_sha256": "2b3baafb36af251198fe7c018eba4ed8f986b87cc2f6eb863536340cdc6f303d",
+    "signing_tools_sha": "2e0e95b8ea1a92a2be2d86486d3f177a7461ca4f"
+  },
+  "package_filename": "TI-Revive-bassmicrobe-f27645c-notarized-mac.zip",
+  "local_verification": {
+    "os": "macOS 27.2",
+    "package_signature": "passed",
+    "staple": "passed",
+    "gatekeeper_install_assessment": "passed",
+    "au_initialization": "passed",
+    "au_parameter_153": 1,
+    "au_render_notes_disabled": "passed",
+    "au_view_lifetime_and_post_disposal_seconds": 3,
+    "au_crash": false,
+    "global_install_performed": false
+  }
+}

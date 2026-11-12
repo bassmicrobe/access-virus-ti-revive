@@ -2,7 +2,7 @@
 
 ## 今回の結果（2026-11-12）
 
-[実公証のCI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43160811599)が成功しました。
+[実公証のCI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43161935995)が成功しました。[検証記録とSHA-256](measurements/notarization.json)を保存しています。
 
 - 対象ソース: `f27645c070c3af3b6a8638d76bb3f5ec3d8830dc`、版0.8.41のfork開発ビルド。
 - Appleの結果: **Accepted、警告0・エラー0**。
