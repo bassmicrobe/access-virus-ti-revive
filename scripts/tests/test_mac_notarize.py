@@ -167,7 +167,12 @@ class MacNotarizeTests(unittest.TestCase):
         self.assertTrue(any(c[:3] == ["xcrun","notarytool","log"] for c in calls))
         with zipfile.ZipFile(self.output) as z:
             pkg = json.loads(z.read("TI-Revive-1.2.3-mac/TI Revive.pkg"))
-            self.assertEqual(z.read("TI-Revive-1.2.3-mac/README-mac.txt"), b"README retained")
+            guide = z.read("TI-Revive-1.2.3-mac/README-mac.txt").decode()
+            self.assertIn("Developer ID signed and Apple notarized (Accepted)", guide)
+            self.assertIn("/Library/Application Support/TI Revive/Set up", guide)
+            self.assertNotIn("not signed", guide)
+            self.assertNotIn("Open Anyway", guide)
+        self.assertTrue(record["signed_distribution_guide"])
         self.assertEqual(pkg["distribution"], "ORIGINAL-DISTRIBUTION")
         self.assertEqual(pkg["scripts"], "ORIGINAL-SCRIPTS")
         self.assertIn('relocatable="false"', pkg["package_info"])

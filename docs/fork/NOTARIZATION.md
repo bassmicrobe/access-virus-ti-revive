@@ -13,6 +13,8 @@
 
 公証はAppleによるコード署名・悪意ある内容の検査です。原作者やAccess Musicの公式製品・公式承認を示すものではありません。MITと第三者ライセンスの表示を保持し、Accessのバイナリ、スキン、XML、ファームウェア、音色バンクは配布に含めません。
 
+公証済みZIP内のREADMEも、署名済み版専用の導入・検証案内へ更新します。上流の未署名版向けの説明をそのまま残しません。
+
 公証対象は**コードと最終pkg**です。ZIP内の単独 `.command` ファイルを個別に公証・stapleしたという意味ではありません。素材セットアップには、pkg導入後の `/Library/Application Support/TI Revive/Set up Access Virus TI files.command` も使えます。
 
 ## GitHub Actionsから実行する

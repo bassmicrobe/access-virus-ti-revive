@@ -296,6 +296,35 @@ def main():
     roots = list(stage.iterdir())
     if len(roots) != 1 or not roots[0].is_dir():
         fail("release ZIP must have one top-level directory")
+    # The unsigned upstream archive says "not signed" and suggests Gatekeeper overrides. Replace that guide
+    # only in the notarized output; the input, installer payload/scripts, license and notices stay untouched.
+    (roots[0] / "README-mac.txt").write_text(
+        "TI Revive - bassmicrobe fork for macOS\n"
+        "=====================================\n\n"
+        "This package is Developer ID signed and Apple notarized (Accepted).\n"
+        "The final TI Revive.pkg has its notarization ticket stapled.\n"
+        "Loose .command files are not individually notarized or stapled.\n"
+        "Source commit: " + (source_sha or "see build provenance") + "\n\n"
+        "Install\n"
+        "1. Install TI Revive.pkg (macOS 14.4+, including macOS 27; arm64 and Intel).\n"
+        "2. Run /Library/Application Support/TI Revive/Set up Access Virus TI files.command.\n"
+        "   When asked, drag your own Access Virus TI Software Suite .pkg into Terminal.\n"
+        "   To keep the original Access plug-ins, answer N to their removal prompt.\n"
+        "3. Connect the Virus TI by USB and use TI Revive Virus Control in your AU/VST3 host.\n"
+        "   Allow the host's microphone permission for USB audio. Save pending edits first.\n"
+        "   Avoid an all-plug-in scan when other products request authorization.\n\n"
+        "Verification (no installation):\n"
+        "  pkgutil --check-signature 'TI Revive.pkg'\n"
+        "  xcrun stapler validate 'TI Revive.pkg'\n"
+        "  spctl --assess --type install --verbose=4 'TI Revive.pkg'\n\n"
+        "Setup, rollback, issue status and notarization records:\n"
+        "  https://github.com/bassmicrobe/access-virus-ti-revive\n"
+        "Original TI Revive project:\n"
+        "  https://github.com/derpsn/access-virus-ti-revive\n\n"
+        "Read LICENSE and THIRD-PARTY-NOTICES.txt. No Access resources or firmware are included.\n"
+        "Not affiliated with Access Music or Kemper. Firmware/flash updates are unsupported.\n",
+        encoding="utf-8")
+    record["signed_distribution_guide"] = True
     final_zip = work / "notarized.zip"
     run("ditto", "-c", "-k", "--keepParent", roots[0], final_zip)
     publish(final_zip, output)
