@@ -27,5 +27,5 @@ rm -f /Library/LaunchAgents/io.github.derpsn.tirevive.vtibroker.plist
 # "TI Revive Virus Control" (same class id / Audio Unit codes, its projects open with it)
 rm -rf "/Library/Audio/Plug-Ins/VST3/Virus TI (TI Revive).vst3" "/Library/Audio/Plug-Ins/Components/Virus TI (TI Revive).component"
 rm -f "/Library/Application Support/TI Revive/vtihelper" "/Library/Application Support/TI Revive/Install Access Virus TI software.command"
-killall -9 AudioComponentRegistrar 2>/dev/null || true # make macOS rescan Audio Units (the new component)
+# Leave shared AU registration and other plug-ins alone; explicit test hosts load this component directly.
 exit 0

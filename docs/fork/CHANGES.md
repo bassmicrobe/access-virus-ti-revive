@@ -54,3 +54,7 @@ See [README.upstream.md](../../README.upstream.md) and the [issue ledger](ISSUES
 ## Developer ID signing and notarization
 
 The fork adds an inside-out signing/notarization helper and a main-only manual CI workflow. It verifies the successful build, source ancestry and artifact digest before importing the Application/Installer identities into an ephemeral keychain. Apple accepted the real package with no issues; stapling, Gatekeeper, cleanup and local macOS27.2 verification passed. Local release builds can request this path with `TIREVIVE_NOTARIZE=1`. The fork skips upstream's ad-hoc tag-publishing job. See [NOTARIZATION.md](NOTARIZATION.md).
+
+## Installation without a global AU refresh
+
+The macOS postinstall script no longer terminates AudioComponentRegistrar. It installs the TI Revive bundles in their standard locations without forcing shared AU registration or running a DAW/validator. Dedicated tests load the selected component directly. Existing DAW caches may retain their previous result until their normal discovery process; no global scan is requested by the installer.
