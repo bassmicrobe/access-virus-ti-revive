@@ -20,6 +20,11 @@ jobs:
         shell: [powershell, pwsh]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Parse installer scripts and run fake-device regression tests
-        shell: ${{ matrix.shell }}
+      - name: Windows PowerShell 5.1 fake-device regression tests
+        if: matrix.shell == 'powershell'
+        shell: powershell
+        run: ./src/installer/tests/test-deviceguard.ps1
+      - name: PowerShell 7 fake-device regression tests
+        if: matrix.shell == 'pwsh'
+        shell: pwsh
         run: ./src/installer/tests/test-deviceguard.ps1
