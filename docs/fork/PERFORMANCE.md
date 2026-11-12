@@ -9,7 +9,7 @@ This document separates **measurements on this fork**, **prior stable-version ha
 - Access Virus **TI POLAR**, OS 5.1.7.00, USB device 133e:0815.
 - Apple Clang 21.0.0; native arm64 Release build, deployment target 14.4.
 - Dedicated explicit-bundle AU/VST3 hosts. A previous stable-version AU load in Live 11.3.35 succeeded, but the DAW/scanner was then stopped because unrelated products requested authorization. No all-plug-in scan is required for these tests.
-- Four RAM banks / 512 patches were backed up and parsed. A read-only fingerprint comparison after the stable-version tests reported all 512 unchanged. Private banks, snapshots and logs are not committed.
+- Four RAM banks / 512 patches were backed up and parsed. Read-only fingerprint comparisons after both the stable-version and fork hardware tests reported all 512 unchanged. Private banks, snapshots and logs are not committed.
 
 ## Encoder microbenchmark
 
@@ -74,7 +74,7 @@ The 0.8.41 low-latency mode is **upstream work** and remains experimental. Its r
 
 A third run enabled the actual **Lower latency** option, explicitly omitted `VTI_NATIVE_A`, and restored the preference afterward. The plug-in logged a 1408-frame lead. In the same final steady window it returned 10/10 notes, median **55.147 ms**, range **55.147–55.782 ms**. The numeric record is [polar-low-latency-option.json](measurements/polar-low-latency-option.json).
 
-The manual 1536-frame comparison differs from the default by **34.830 ms**; the actual Options comparison differs by **37.732 ms**. Detection uses the existing `scripts/timing_analysis.py` onset function (5 ms RMS envelope and 20% threshold); it includes the patch's attack and detection threshold. This is not a direct measurement of MIDI timestamp jitter, physical-key latency or speaker round-trip latency. Two short runs do not establish the reduced margin's long-term stability in a DAW.
+The manual 1536-frame comparison differs from the default by **34.830 ms**; the actual Options comparison differs by **37.732 ms**. Detection uses the existing `scripts/timing_analysis.py` onset function (5 ms RMS envelope and 20% threshold); it includes the patch's attack and detection threshold. This is not a direct measurement of MIDI timestamp jitter, physical-key latency or speaker round-trip latency. These short runs do not establish the reduced margin's long-term stability in a DAW.
 
 The manual lead override and the Options algorithm are upstream timing work, tested separately here on the POLAR/Mac; neither is a new fork algorithm. The safe default remains unchanged. Raw audio and private logs stay outside the repository. Numeric records without personal data are in [measurements](measurements/).
 

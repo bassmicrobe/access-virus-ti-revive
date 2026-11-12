@@ -170,10 +170,18 @@ TEST(diag_tail_file)
     Home h("vtester");
     CHECK(tail_file(vti::u8str(h.dir / "missing.log"), 10).empty());
     fs::path small = h.dir / "small.log";
-    std::ofstream(small) << "one\r\ntwo\nthree\n";
+    const std::string mixed_endings = "one\r\ntwo\nthree\n";
+    // This fixture deliberately mixes CRLF and LF. Windows text output would expand its explicit CRLF into
+    // CRCRLF, leaving a real extra CR after tail_file removes the line ending. Write the intended bytes exactly.
+    std::ofstream(small, std::ios::binary) << mixed_endings;
+    {
+        std::ifstream raw(small, std::ios::binary);
+        CHECK(std::string((std::istreambuf_iterator<char>(raw)), std::istreambuf_iterator<char>()) == mixed_endings);
+    }
     auto t = tail_file(vti::u8str(small), 2);
     CHECK(t.size() == 2 && t[0] == "two" && t[1] == "three"); // the last n, CR removed
-    CHECK(tail_file(vti::u8str(small), 10).size() == 3 && tail_file(vti::u8str(small), 10)[0] == "one");
+    const auto all = tail_file(vti::u8str(small), 10);
+    CHECK(all.size() == 3 && all[0] == "one");
     // a long log: only its end is read, the partial first line of that window is dropped
     fs::path big = h.dir / "big.log";
     {

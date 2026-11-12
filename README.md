@@ -16,7 +16,7 @@ TI Reviveはderpsnとコントリビュータによる独立プロジェクト�
 |---|---|---|
 | AU初期値・プリセット復元の同期 | AUが返す値と、音色の実際の初期値を一致させる | 合成回帰テストと実AUで確認 |
 | オートメーション送信の事前計算 | 音声処理内で繰り返す文字列・定義探索を減らす | 同一バイト列を保つテストと単独ベンチマーク |
-| Windowsの旧ドライバ検出 | 旧Accessドライバが使用中なら、強制削除前に停止する | mockテスト。Windows実機のBSOD根治を意味しない |
+| Windowsの旧ドライバ検出 | 旧Accessドライバが使用中なら、ドライバ変更前に停止する | mockテスト。Windows実機のBSOD根治を意味しない |
 | Macの再現・診断手順 | 素材不足・接続・音声の問題を切り分ける | 認証画面を出す全プラグイン走査を必要としない |
 
 各変更の実装状況・測定結果・残る制約は[変更点](docs/fork/CHANGES.md)、[性能測定](docs/fork/PERFORMANCE.md)、[Issue台帳](docs/fork/ISSUES.md)に記録します。
@@ -33,7 +33,7 @@ Accessのバイナリ、XML、スキン画像、ROMバンク、ファームウ�
 ## Macで使う
 
 1. ビルド元と版を確認します。上流安定版は[上流Releases](https://github.com/derpsn/access-virus-ti-revive/releases)、このforkの公開バイナリは[このforkのReleases](https://github.com/bassmicrobe/access-virus-ti-revive/releases)にあるものだけです。リリースがなければ下記の手順でソースからビルドします。
-2. パッケージを使う場合はTI Reviveをインストールし、同梱の **Set up Access Virus TI files.command** に所有するAccess `.pkg`を指定します。Accessインストーラ自体を起動する必要はありません。
+2. パッケージを使う場合はTI Reviveをインストールし、同梱の **Set up Access Virus TI files.command** に所有するAccess `.pkg`を指定します。Accessインストーラ自体を起動する必要はありません。最後に `Remove original Access plugins? [Y/n]` と聞かれたら、旧プラグインを残す場合は `N` を選びます。この操作は退避ではなく削除です。
 3. 旧Access / AURAドライバがVirusを使用中なら競合します。削除前に退避先を記録し、元へ戻せる形で移動します。音色ライブラリや保存バンクを削除する必要はありません。
 4. VirusをUSB接続し、DAWのMIDIトラックにTI Reviveを挿します。macOSの「マイク」権限はVirusのUSB音声入力にも必要です。必要なDAWにだけ許可します。
 5. 初回はRAMバンクの同期を待ちます。キャッシュ作成後は本体の変更分を確認します。同じ本体を複数のエディタや複数のインスタンスで同時に操作しません。
@@ -50,6 +50,8 @@ Accessのバイナリ、XML、スキン画像、ROMバンク、ファームウ�
 
 Xcode / Command Line Tools、CMake、Gitが必要です。依存SDKは固定されたsubmodule / バージョンを使います。
 
+下記のCMake手順はプラグイン・Control Center・テストを生成します。USB通信用のbrokerとAccess素材は別途必要です。既に上流安定版のパッケージを導入し、素材のセットアップを済ませたMacなら、その環境でビルド版だけを指定して検証できます。CMakeビルドは既存brokerや安定版を上書きしません。
+
 ```sh
 git clone --recurse-submodules https://github.com/bassmicrobe/access-virus-ti-revive.git
 cd access-virus-ti-revive
@@ -60,6 +62,12 @@ ctest --test-dir build --output-on-failure
 ```
 
 生成先は `build/VST3/Release/`、`build/AU/`、`build/ccapp/` です。ビルドしただけではインストール済みプラグインは置き換わりません。まずそのパスのTI Reviveだけを指定する[専用テスト](docs/fork/PERFORMANCE.md)で確認してください。
+
+未導入のMac向けにbrokerを含むUniversalパッケージを作る場合は、Xcodeを選択した環境で次を実行し、生成したパッケージと同梱の素材セットアップ手順を使います。生成だけではインストールされません。
+
+```sh
+bash scripts/mac-build-release.sh "$PWD" 0.8.41 "$PWD/package-build"
+```
 
 配布パッケージの作成・Windows / Linuxのビルドは[上流の手順](README.upstream.md#building)にあります。Universal / Intel / Windows / Linux向けに生成できることと、その機種での動作確認済みは別です。
 

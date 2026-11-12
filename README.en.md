@@ -12,9 +12,11 @@ You need a physical Virus TI-family synth, your own Access Virus TI Software Sui
 
 No Access binaries, firmware, XML, skins or banks are redistributed here. Setup extracts the required data from the installer you own. Firmware/OS/flash updates are not supported. Plug-in activation changes the current edit buffers; save pending edits and use a disposable project for tests.
 
-Install a published package only from the release page of the intended repository. [Upstream releases](https://github.com/derpsn/access-virus-ti-revive/releases) and [fork releases](https://github.com/bassmicrobe/access-virus-ti-revive/releases) are distinct; if this fork has no release, build from source. Follow the [upstream installation instructions](README.upstream.md#installation), allow the chosen host's macOS microphone permission for USB audio, and park conflicting old drivers reversibly. Keep only one installed copy per plug-in ID. A source build does not replace your installed stable version.
+Install a published package only from the release page of the intended repository. [Upstream releases](https://github.com/derpsn/access-virus-ti-revive/releases) and [fork releases](https://github.com/bassmicrobe/access-virus-ti-revive/releases) are distinct; if this fork has no release, build from source. Follow the [upstream installation instructions](README.upstream.md#installation), allow the chosen host's macOS microphone permission for USB audio, and park conflicting old drivers reversibly. Keep only one installed copy per plug-in ID. A source build does not replace your installed stable version. The setup script can ask `Remove original Access plugins? [Y/n]`: choose `N` to keep them; that action deletes rather than parks those old plug-ins.
 
 ## Build on Apple Silicon
+
+The CMake build below creates the plug-in, Control Center and tests, but not the USB broker or Access resources. For USB tests, first install the upstream stable package and complete its Access-file setup, then target the fork component explicitly. The source build leaves the installed broker/stable version in place.
 
 ```sh
 git clone --recurse-submodules https://github.com/bassmicrobe/access-virus-ti-revive.git
@@ -25,7 +27,13 @@ cmake --build build --parallel 4
 ctest --test-dir build --output-on-failure
 ```
 
-Outputs: `build/VST3/Release`, `build/AU`, `build/ccapp`. For other platforms and package builds see [upstream build documentation](README.upstream.md#building). Buildability and hardware validation are reported separately.
+Outputs: `build/VST3/Release`, `build/AU`, `build/ccapp`. For a fresh Mac, build the complete universal package including the broker with Xcode selected:
+
+```sh
+bash scripts/mac-build-release.sh "$PWD" 0.8.41 "$PWD/package-build"
+```
+
+Building a package does not install it; use the generated package and its included Access-file setup instructions. For other platforms and package builds see [upstream build documentation](README.upstream.md#building). Buildability and hardware validation are reported separately.
 
 ## Windows legacy driver migration
 
