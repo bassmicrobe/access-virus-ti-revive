@@ -12,9 +12,6 @@ $logDir = Join-Path $env:ProgramData 'TI Revive'
 New-Item -ItemType Directory -Force $logDir | Out-Null
 Start-Transcript -Path (Join-Path $logDir 'driver.log') -Append | Out-Null
 $reg = 'HKLM:\SOFTWARE\TI Revive'
-# NOT New-Item -Force on every run: on an existing key it recreates it empty, which wiped DriverPackage /
-# CertThumbprint before uninstall could read them (0.1.0 left the driver package and cert behind, E063)
-if ($Action -eq 'install' -and -not (Test-Path $reg)) { New-Item -Path $reg | Out-Null }
 
 function Trust-Store([string]$name, $cert, [switch]$Remove) {
     $s = New-Object System.Security.Cryptography.X509Certificates.X509Store($name, 'LocalMachine')
@@ -25,6 +22,17 @@ function Trust-Store([string]$name, $cert, [switch]$Remove) {
 }
 
 if ($Action -eq 'install') {
+    try {
+        . (Join-Path $here 'tirevive-deviceguard.ps1')
+        Assert-TIReviveAccessDriversOffline
+    } catch {
+        Write-Error $_ -ErrorAction Continue
+        Stop-Transcript | Out-Null
+        exit 1 # the MSI's deferred action has Return="check"; do not report a successful driver setup
+    }
+    # NOT New-Item -Force on every run: it wiped DriverPackage / CertThumbprint before uninstall could read them
+    # (E063). Do not create the key until the old-driver preflight has passed either.
+    if (-not (Test-Path $reg)) { New-Item -Path $reg | Out-Null }
     # Access driver packages would be preferred for the device and are blocked by Code Integrity on Win11.
     $blocks = (pnputil /enum-drivers | Out-String) -split "(\r?\n){2,}"
     foreach ($b in $blocks) {
@@ -34,7 +42,13 @@ if ($Action -eq 'install') {
             $pkg = $Matches[1]
             if ($b -match '(?i)virususb\.inf|vtimidi\.inf|vtiaudio\.inf') {
                 "removing Access driver package $pkg"
-                pnputil /delete-driver $pkg /uninstall /force | Out-String
+                try {
+                    Remove-TIReviveAccessDriverPackage $pkg
+                } catch {
+                    Write-Error $_ -ErrorAction Continue
+                    Stop-Transcript | Out-Null
+                    exit 1
+                }
             }
         }
     }
@@ -52,18 +66,26 @@ if ($Action -eq 'install') {
     "catalog signature: $($sig.Status)"
     Remove-Item "Cert:\LocalMachine\My\$($cert.Thumbprint)" -DeleteKey # private key gone: signs nothing else
     Set-ItemProperty $reg CertThumbprint $cert.Thumbprint
+    try {
+        Assert-TIReviveAccessDriversOffline
+    } catch {
+        Write-Error $_ -ErrorAction Continue
+        Remove-Item $stage -Recurse -Force
+        Stop-Transcript | Out-Null
+        exit 1
+    }
     $out = pnputil /add-driver (Join-Path $stage 'vti_winusb.inf') /install | Out-String
     $out
     if ($out -match '(oem\d+\.inf)') { Set-ItemProperty $reg DriverPackage $Matches[1] }
-    # a Virus still running on the Access USB driver (service VIRUSUSB, e.g. Access software installed or repaired
-    # after TI Revive) keeps it until the device is re-detected: remove those device nodes, the rescan below brings
-    # the Virus back on the generic composite driver with our WinUSB interfaces (issue #3, Snow)
-    Get-PnpDevice -ErrorAction SilentlyContinue | Where-Object InstanceId -match 'VID_133E' | ForEach-Object {
-        $svc = (Get-PnpDeviceProperty -InstanceId $_.InstanceId -KeyName 'DEVPKEY_Device_Service' -ErrorAction SilentlyContinue).Data
-        if ($svc -eq 'VIRUSUSB') {
-            "re-detecting $($_.InstanceId) (was on the Access USB driver)"
-            pnputil /remove-device $_.InstanceId | Out-String
-        }
+    # Do not remove a newly connected VIRUSUSB device to force re-detection (issue #31). Its legacy MIDI driver
+    # can crash Windows on unload; fail and ask for an offline retry instead.
+    try {
+        Assert-TIReviveAccessDriversOffline
+    } catch {
+        Write-Error $_ -ErrorAction Continue
+        Remove-Item $stage -Recurse -Force
+        Stop-Transcript | Out-Null
+        exit 1
     }
     pnputil /scan-devices | Out-Null
     Start-Sleep -Seconds 3

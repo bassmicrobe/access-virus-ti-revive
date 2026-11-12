@@ -1,0 +1,25 @@
+name: fork-checks
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-driver-guard:
+    name: Installer guard (${{ matrix.shell }})
+    runs-on: windows-2022
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Parse installer scripts and run fake-device regression tests
+        shell: ${{ matrix.shell }}
+        run: ./src/installer/tests/test-deviceguard.ps1
