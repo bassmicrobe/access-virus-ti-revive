@@ -1,64 +1,125 @@
-// Nerd mode's diagnostics (src/cc/diag) below a temporary HOME - never the user's real plug-in folder: the diag.on
-// switch, the end of long logs, anonymizing (home folder, user name) and the bug-report file. POSIX (sets HOME).
-#ifndef _WIN32
+// Nerd mode's diagnostics (src/cc/diag) below temporary platform-specific application folders - never the user's
+// real plug-in folder: the switches, log tails, anonymizing (home folder, user name) and the bug-report file.
 #include "check.h"
 #include "cc/diag.h"
+#include "model/utf8.h"
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#ifdef _WIN32
+#include <process.h>
+#else
 #include <unistd.h>
+#endif
 using namespace vti::cc;
 namespace fs = std::filesystem;
 
 namespace {
 struct Home {
-    std::string old_home, old_user;
-    bool had_home = false, had_user = false;
+    struct Saved {
+        std::string key, value;
+        bool had;
+    };
+    std::vector<Saved> saved;
     fs::path dir;
+    void set(const char *key, const std::string &value)
+    {
+#ifdef _WIN32
+        saved.push_back({key, vti::u8env(key), _wgetenv(vti::widen(key).c_str()) != nullptr});
+        _wputenv_s(vti::widen(key).c_str(), vti::widen(value).c_str());
+#else
+        const char *old = getenv(key);
+        saved.push_back({key, old ? old : "", old != nullptr});
+        setenv(key, value.c_str(), 1);
+#endif
+    }
     explicit Home(const char *user)
     {
-        if (const char *h = getenv("HOME"))
-            old_home = h, had_home = true;
-        if (const char *u = getenv("USER"))
-            old_user = u, had_user = true;
-        dir = fs::temp_directory_path() / ("vtitests-diag-" + std::to_string(getpid()));
+        static unsigned sequence = 0; // nested fixtures must not remove the outer fixture's folder
+#ifdef _WIN32
+        const int pid = _getpid();
+#else
+        const int pid = getpid();
+#endif
+        dir = fs::temp_directory_path() / ("vtitests-diag-" + std::to_string(pid) + "-" + std::to_string(++sequence));
         fs::remove_all(dir);
         fs::create_directories(dir);
-        setenv("HOME", dir.string().c_str(), 1);
-        setenv("USER", user, 1);
+#ifdef _WIN32
+        fs::create_directories(dir / "tmp");
+        set("USERPROFILE", vti::u8str(dir));
+        set("USERNAME", user);
+        set("LOCALAPPDATA", vti::u8str(dir / "LocalAppData"));
+        set("TEMP", vti::u8str(dir / "tmp"));
+#else
+        set("HOME", vti::u8str(dir));
+        set("USER", user);
+#endif
+    }
+    fs::path plugin_folder() const
+    {
+#ifdef _WIN32
+        return dir / "LocalAppData/virus-ti-native";
+#elif defined(__APPLE__)
+        return dir / "Library/Application Support/virus-ti-native";
+#else
+        return dir / ".local/share/virus-ti-native";
+#endif
     }
     ~Home()
     {
-        had_home ? setenv("HOME", old_home.c_str(), 1) : unsetenv("HOME");
-        had_user ? setenv("USER", old_user.c_str(), 1) : unsetenv("USER");
+        for (const auto &s : saved) {
+#ifdef _WIN32
+            _wputenv_s(vti::widen(s.key).c_str(), s.had ? vti::widen(s.value).c_str() : L"");
+#else
+            s.had ? setenv(s.key.c_str(), s.value.c_str(), 1) : unsetenv(s.key.c_str());
+#endif
+        }
         std::error_code ec;
         fs::remove_all(dir, ec);
     }
 };
+
+const char *platform_name()
+{
+#ifdef _WIN32
+    return "Windows";
+#elif defined(__APPLE__)
+    return "macOS";
+#else
+    return "Linux";
+#endif
+}
 } // namespace
 
 TEST(diag_switch_and_paths)
 {
     Home h("vtester");
-    CHECK(plugin_dir() == (h.dir / ".local/share/virus-ti-native").string());
-    CHECK(plugin_log_path() == (h.dir / ".local/share/virus-ti-native/diag.log").string());
+    const fs::path folder = h.plugin_folder();
+    CHECK(vti::u8path(plugin_dir()).lexically_normal() == folder.lexically_normal());
+    CHECK(vti::u8path(plugin_log_path()).lexically_normal() == (folder / "diag.log").lexically_normal());
     // on by default since 0.8.41 (user 2026-11-10: reports without the log kept coming); diag.off switches it off
     CHECK(plugin_log_enabled());
     std::string err;
     CHECK(set_plugin_log(false, err) && !plugin_log_enabled()); // creates the folder too
-    CHECK(fs::exists(h.dir / ".local/share/virus-ti-native/diag.off"));
+    CHECK(fs::exists(folder / "diag.off"));
     CHECK(set_plugin_log(false, err)); // again: harmless
     CHECK(set_plugin_log(true, err) && plugin_log_enabled());
-    CHECK(!fs::exists(h.dir / ".local/share/virus-ti-native/diag.off"));
+    CHECK(!fs::exists(folder / "diag.off"));
     CHECK(set_plugin_log(true, err)); // already on
     // an old diag.on (the switch before 0.8.41) changes nothing, and switching off removes it
-    std::ofstream(h.dir / ".local/share/virus-ti-native/diag.on").put('\n');
+    std::ofstream(folder / "diag.on").put('\n');
     CHECK(plugin_log_enabled());
     CHECK(set_plugin_log(false, err) && !plugin_log_enabled());
-    CHECK(!fs::exists(h.dir / ".local/share/virus-ti-native/diag.on"));
+    CHECK(!fs::exists(folder / "diag.on"));
     CHECK(set_plugin_log(true, err));
-    CHECK(broker_log_location().find("journalctl") != std::string::npos);
-    (void)broker_log_tail(5); // the user journal: read-only, may be empty (CI)
+#ifdef _WIN32
+    CHECK(vti::u8path(broker_log_location()).lexically_normal() == (h.dir / "tmp/vtibroker.log").lexically_normal());
+#elif defined(__APPLE__)
+    CHECK(broker_log_location() == "/tmp/tirevive-vtibroker.log");
+#else
+    CHECK(broker_log_location() == "journalctl --user -u tirevive-broker");
+#endif
+    (void)broker_log_tail(5); // the platform's broker log: read-only, may be empty (CI)
 }
 
 // the Control Center's options (nerd mode): flag files in the plug-in's folder, read when a plug-in instance starts
@@ -91,13 +152,13 @@ TEST(diag_plugin_options)
     CHECK(plugin_option("live-notes")); // on without any file
     std::string e0;
     CHECK(set_plugin_option("live-notes", false, e0) && !plugin_option("live-notes"));
-    CHECK(fs::exists(h.dir / ".local/share/virus-ti-native/live-notes.off"));
+    CHECK(fs::exists(h.plugin_folder() / "live-notes.off"));
     CHECK(set_plugin_option("live-notes", true, e0) && plugin_option("live-notes"));
-    CHECK(!fs::exists(h.dir / ".local/share/virus-ti-native/live-notes.off"));
+    CHECK(!fs::exists(h.plugin_folder() / "live-notes.off"));
     CHECK(!plugin_option("outdelay-changes"));
     std::string err;
     CHECK(set_plugin_option("outdelay-changes", true, err) && plugin_option("outdelay-changes"));
-    CHECK(fs::exists(h.dir / ".local/share/virus-ti-native/outdelay-changes.on"));
+    CHECK(fs::exists(h.plugin_folder() / "outdelay-changes.on"));
     CHECK(!plugin_option("timing-classic")); // independent
     CHECK(set_plugin_option("outdelay-changes", false, err) && !plugin_option("outdelay-changes"));
     CHECK(!set_plugin_option("no-such-option", true, err) && !err.empty());
@@ -107,12 +168,12 @@ TEST(diag_plugin_options)
 TEST(diag_tail_file)
 {
     Home h("vtester");
-    CHECK(tail_file((h.dir / "missing.log").string(), 10).empty());
+    CHECK(tail_file(vti::u8str(h.dir / "missing.log"), 10).empty());
     fs::path small = h.dir / "small.log";
     std::ofstream(small) << "one\r\ntwo\nthree\n";
-    auto t = tail_file(small.string(), 2);
+    auto t = tail_file(vti::u8str(small), 2);
     CHECK(t.size() == 2 && t[0] == "two" && t[1] == "three"); // the last n, CR removed
-    CHECK(tail_file(small.string(), 10).size() == 3 && tail_file(small.string(), 10)[0] == "one");
+    CHECK(tail_file(vti::u8str(small), 10).size() == 3 && tail_file(vti::u8str(small), 10)[0] == "one");
     // a long log: only its end is read, the partial first line of that window is dropped
     fs::path big = h.dir / "big.log";
     {
@@ -120,17 +181,17 @@ TEST(diag_tail_file)
         for (int i = 0; i < 20000; i++)
             o << "line " << i << " " << std::string(50, 'x') << "\n";
     }
-    auto b = tail_file(big.string(), 3);
+    auto b = tail_file(vti::u8str(big), 3);
     CHECK(b.size() == 3 && b[2].rfind("line 19999 ", 0) == 0 && b[0].rfind("line 19997 ", 0) == 0);
 }
 
 TEST(diag_anonymize)
 {
     Home h("vtester");
-    const std::string home = h.dir.string();
-    std::string alt = home; // the same path with backslashes (Windows-style paths in logs)
+    const std::string home = vti::u8str(h.dir);
+    std::string alt = home; // the same path with the other kind of slashes
     for (auto &c : alt)
-        c = c == '/' ? '\\' : c;
+        c = c == '/' ? '\\' : c == '\\' ? '/' : c;
     std::string in = "cache " + home + "/cache, wine " + alt + "\\drive_c, owner vtester, other text";
     std::string out = anonymize(in);
     CHECK(out.find(home) == std::string::npos && out.find(alt) == std::string::npos);
@@ -148,13 +209,13 @@ TEST(diag_rotate_log)
 {
     Home h("vtester");
     fs::path log = h.dir / "diag.log", old = h.dir / "diag.log.1";
-    CHECK(!rotate_log(log.string(), 100)); // missing: nothing to do
+    CHECK(!rotate_log(vti::u8str(log), 100)); // missing: nothing to do
     std::ofstream(log) << std::string(100, 'a');
-    CHECK(!rotate_log(log.string(), 100) && fs::exists(log)); // at the limit: kept
+    CHECK(!rotate_log(vti::u8str(log), 100) && fs::exists(log)); // at the limit: kept
     std::ofstream(log, std::ios::app) << "b";
-    CHECK(rotate_log(log.string(), 100) && !fs::exists(log) && fs::file_size(old) == 101);
+    CHECK(rotate_log(vti::u8str(log), 100) && !fs::exists(log) && fs::file_size(old) == 101);
     std::ofstream(log) << std::string(150, 'c');
-    CHECK(rotate_log(log.string(), 100) && fs::file_size(old) == 150); // the older .1 is replaced
+    CHECK(rotate_log(vti::u8str(log), 100) && fs::file_size(old) == 150); // the older .1 is replaced
     CHECK(kPluginLogLimit >= 1000000 && kPluginLogLimit <= 8000000);
 }
 
@@ -163,31 +224,33 @@ TEST(diag_collect_logs)
     Home h("vtester");
     std::string err;
     CHECK(set_plugin_log(true, err));
-    fs::create_directories(plugin_dir()); // "on" writes no file since 0.8.41; the plug-in makes its folder itself
+    fs::create_directories(vti::u8path(plugin_dir())); // "on" writes no file since 0.8.41; the plug-in makes its folder itself
     {
-        std::ofstream o(plugin_log_path());
-        o << "Virus TI native: cache " << h.dir.string() << "/x\n" << "Virus ready after 3.8 s\n";
+        std::ofstream o(vti::u8path(plugin_log_path()));
+        o << "Virus TI native: cache " << vti::u8str(h.dir) << "/x\n" << "Virus ready after 3.8 s\n";
     }
     fs::path out = h.dir / "report.txt";
-    CHECK(collect_logs(out.string(), "0.0.1", err));
+    CHECK(collect_logs(vti::u8str(out), "0.0.1", err));
     std::ifstream f(out);
     std::string all((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    CHECK(all.find("TI Revive logs") == 0 && all.find("Control Center 0.0.1 on Linux") != std::string::npos);
+    f.close();
+    CHECK(all.find("TI Revive logs") == 0 &&
+          all.find(std::string("Control Center 0.0.1 on ") + platform_name()) != std::string::npos);
     CHECK(all.find("Plug-in log ON") != std::string::npos && all.find("Virus ready after 3.8 s") != std::string::npos);
-    CHECK(all.find(h.dir.string()) == std::string::npos && all.find("cache ~/x") != std::string::npos);
+    CHECK(all.find(vti::u8str(h.dir)) == std::string::npos && all.find("cache ~/x") != std::string::npos);
     CHECK(all.find("--- broker log") != std::string::npos);
     // right after a rotation diag.log is short: the end of diag.log.1 comes first, so the report keeps its context
     {
-        std::ofstream(plugin_log_path() + ".1") << "older line\n";
-        std::ofstream(plugin_log_path()) << "newer line\n";
-        CHECK(collect_logs(out.string(), "0.0.1", err));
+        std::ofstream(vti::u8path(plugin_log_path() + ".1")) << "older line\n";
+        std::ofstream(vti::u8path(plugin_log_path())) << "newer line\n";
+        CHECK(collect_logs(vti::u8str(out), "0.0.1", err));
         std::ifstream g(out);
         std::string r((std::istreambuf_iterator<char>(g)), std::istreambuf_iterator<char>());
         const size_t a = r.find("older line"), b = r.find("newer line");
         CHECK(a != std::string::npos && b != std::string::npos && a < b);
     }
     // switched off: the header says how to switch it on again
-    CHECK(set_plugin_log(false, err) && collect_logs(out.string(), "0.0.1", err));
+    CHECK(set_plugin_log(false, err) && collect_logs(vti::u8str(out), "0.0.1", err));
     {
         std::ifstream g(out);
         std::string r((std::istreambuf_iterator<char>(g)), std::istreambuf_iterator<char>());
@@ -195,6 +258,5 @@ TEST(diag_collect_logs)
     }
     // a folder as the target: cannot be written
     err.clear();
-    CHECK(!collect_logs(h.dir.string(), "0.0.1", err) && !err.empty());
+    CHECK(!collect_logs(vti::u8str(h.dir), "0.0.1", err) && !err.empty());
 }
-#endif

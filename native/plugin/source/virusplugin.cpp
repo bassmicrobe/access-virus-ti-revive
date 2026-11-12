@@ -1082,6 +1082,13 @@ tresult PLUGIN_API VirusPlugin::initialize(FUnknown *context)
         snprintf(units, sizeof units, "Part %02d/", e.part);
         parameters.addParameter(UString128(title), UString128(units), 0, 0.0, ParameterInfo::kCanAutomate, e.id);
         params_[(ParamID)e.id] = {e.path, e.part - 1};
+        auto &mapped = params_[(ParamID)e.id];
+        if (const Parameter *p = dev_.find(e.path)) {
+            mapped.minimum = p->min;
+            mapped.maximum = p->max;
+            mapped.bounded = true;
+        }
+        mapped.encoding = dev_.compile_encoding(e.path);
         ids_[{e.path, e.part - 1}] = (ParamID)e.id;
     }
     for (int ch = 0; ch < 16; ch++) {
@@ -1865,8 +1872,8 @@ tresult PLUGIN_API VirusPlugin::process(ProcessData &data)
             if (gestures_.echo(id, v, now_ms())) // our own edit of a knob moved on the Virus, handed back: not again
                 continue;
             int value = (int)std::lround(v * 127); // the original's automation scale (docs/formats.md)
-            if (const Parameter *p = dev_.find(it->second.path))
-                value = std::min(std::max(value, p->min), p->max);
+            if (it->second.bounded)
+                value = std::min(std::max(value, it->second.minimum), it->second.maximum);
             // coalesce: only the latest value per parameter waits for the budget below
             if (it->second.pending >= 0 || automation_.push(id))
                 it->second.pending = value;
@@ -1887,7 +1894,9 @@ tresult PLUGIN_API VirusPlugin::process(ProcessData &data)
             int value = it->second.pending;
             it->second.pending = -1;
             uint8_t m[16];
-            size_t n = dev_.encode_into(it->second.path, value, it->second.part, m, sizeof m);
+            size_t n = it->second.encoding
+                           ? it->second.encoding->encode_into(value, it->second.part, m, sizeof m)
+                           : dev_.encode_into(it->second.path, value, it->second.part, m, sizeof m);
             if (n)
                 add(at(0), m, n);
             return true;

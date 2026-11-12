@@ -420,39 +420,45 @@ std::vector<uint8_t> AccessFiles::init_multi() const { return find_dump(0x11, 26
 
 std::unique_ptr<AccessFiles> AccessFiles::open(const std::string &hint, std::string &error)
 {
+    error.clear();
     std::vector<std::string> cands;
+    const std::string specified = u8env("VTI_ACCESS_DIR");
     if (!hint.empty())
         cands.push_back(hint);
-    if (const std::string e = u8env("VTI_ACCESS_DIR"); !e.empty())
-        cands.push_back(e);
-    const char *home = std::getenv("HOME");
-    const std::string common = "Access Music/Virus TI/Common";
+    else if (!specified.empty())
+        cands.push_back(specified);
+    else {
+        // An explicit source is authoritative: a broken/32-bit selected copy must not silently load another version
+        // from the machine. Only an unconfigured instance searches the platform's standard locations.
+        const std::string common = "Access Music/Virus TI/Common";
 #if defined(_WIN32)
-    for (const char *pf : {"ProgramW6432", "ProgramFiles"})
-        if (const std::string p = u8env(pf); !p.empty())
-            cands.push_back(p + "/" + common);
+        for (const char *pf : {"ProgramW6432", "ProgramFiles"})
+            if (const std::string p = u8env(pf); !p.empty())
+                cands.push_back(p + "/" + common);
 #elif defined(__APPLE__)
-    cands.push_back("/Library/Application Support/" + common + "/Virus Control.bundle");
+        cands.push_back("/Library/Application Support/" + common + "/Virus Control.bundle");
 #else
-    // TI Revive's Linux installer writes the folder it installed the Access software to (any Wine prefix): a DAW
-    // started from the desktop does not see WINEPREFIX
-    std::string conf = std::getenv("XDG_CONFIG_HOME") ? std::getenv("XDG_CONFIG_HOME") : (home ? std::string(home) + "/.config" : "");
-    if (!conf.empty())
-        if (FILE *f = std::fopen((conf + "/tirevive/access-dir").c_str(), "r")) {
-            char line[1024] = {};
-            if (std::fgets(line, sizeof line, f)) {
-                std::string d(line);
-                while (!d.empty() && (d.back() == '\n' || d.back() == '\r'))
-                    d.pop_back();
-                if (!d.empty())
-                    cands.push_back(d);
+        const char *home = std::getenv("HOME");
+        // TI Revive's Linux installer writes the folder it installed the Access software to (any Wine prefix): a DAW
+        // started from the desktop does not see WINEPREFIX
+        std::string conf = std::getenv("XDG_CONFIG_HOME") ? std::getenv("XDG_CONFIG_HOME") : (home ? std::string(home) + "/.config" : "");
+        if (!conf.empty())
+            if (FILE *f = std::fopen((conf + "/tirevive/access-dir").c_str(), "r")) {
+                char line[1024] = {};
+                if (std::fgets(line, sizeof line, f)) {
+                    std::string d(line);
+                    while (!d.empty() && (d.back() == '\n' || d.back() == '\r'))
+                        d.pop_back();
+                    if (!d.empty())
+                        cands.push_back(d);
+                }
+                std::fclose(f);
             }
-            std::fclose(f);
-        }
-    std::string prefix = std::getenv("WINEPREFIX") ? std::getenv("WINEPREFIX") : (home ? std::string(home) + "/.wine" : "");
-    if (!prefix.empty())
-        cands.push_back(prefix + "/drive_c/Program Files/" + common);
+        std::string prefix = std::getenv("WINEPREFIX") ? std::getenv("WINEPREFIX") : (home ? std::string(home) + "/.wine" : "");
+        if (!prefix.empty())
+            cands.push_back(prefix + "/drive_c/Program Files/" + common);
 #endif
+    }
     std::string last = "no Access Virus TI installation found", x86;
     for (auto c : cands) {
         fs::path p = u8path(c);
@@ -480,39 +486,48 @@ std::unique_ptr<AccessFiles> AccessFiles::open(const std::string &hint, std::str
 
 std::unique_ptr<AccessFiles> AccessFiles::open_control_center(std::string &error)
 {
+    error.clear();
     const char *exe = "Virus Control Center.exe";
     std::vector<fs::path> cands;
-    if (const std::string e = u8env("VTI_ACCESS_CC"); !e.empty())
-        cands.push_back(u8path(e));
-    std::string err;
-    if (auto plugin = open("", err)) { // the Control Center sits next to the plug-in in the installer's Common folder
-        const fs::path src = u8path(plugin->source());
-        cands.push_back(src.parent_path() / exe);
-    }
+    const std::string specified = u8env("VTI_ACCESS_CC");
+    if (!specified.empty())
+        cands.push_back(u8path(specified));
+    else {
+        std::string err;
+        if (auto plugin = open("", err)) { // the Control Center sits next to the plug-in in the installer's Common folder
+            const fs::path src = u8path(plugin->source());
+            cands.push_back(src.parent_path() / exe);
+        }
 #if defined(_WIN32)
-    for (const char *pf : {"ProgramW6432", "ProgramFiles"})
-        if (const std::string p = u8env(pf); !p.empty())
-            cands.push_back(u8path(p) / "Access Music/Virus TI/Common" / exe);
+        for (const char *pf : {"ProgramW6432", "ProgramFiles"})
+            if (const std::string p = u8env(pf); !p.empty())
+                cands.push_back(u8path(p) / "Access Music/Virus TI/Common" / exe);
 #elif defined(__APPLE__)
-    // TI Revive's "Set up Access Virus TI files" copies its images and layout there; else an Access installation
-    cands.push_back("/Library/Application Support/Access Music/Virus TI/Common/Virus Control Center Resources");
-    cands.push_back("/Applications/Access Music/Virus TI/Virus Control Center.app/Contents/Resources");
+        // TI Revive's "Set up Access Virus TI files" copies its images and layout there; else an Access installation
+        cands.push_back("/Library/Application Support/Access Music/Virus TI/Common/Virus Control Center Resources");
+        cands.push_back("/Applications/Access Music/Virus TI/Virus Control Center.app/Contents/Resources");
 #else
-    const char *home = std::getenv("HOME");
-    std::string prefix = std::getenv("WINEPREFIX") ? std::getenv("WINEPREFIX") : (home ? std::string(home) + "/.wine" : "");
-    if (!prefix.empty())
-        cands.push_back(fs::path(prefix) / "drive_c/Program Files/Access Music/Virus TI/Common" / exe);
+        const char *home = std::getenv("HOME");
+        std::string prefix = std::getenv("WINEPREFIX") ? std::getenv("WINEPREFIX") : (home ? std::string(home) + "/.wine" : "");
+        if (!prefix.empty())
+            cands.push_back(fs::path(prefix) / "drive_c/Program Files/Access Music/Virus TI/Common" / exe);
 #endif
+    }
     std::string last = "Access' Virus Control Center not found (it comes with the Virus TI Software Suite installer)";
     for (auto &p : cands) {
         std::error_code ec;
-        if (!fs::exists(p, ec))
+        if (!fs::exists(p, ec)) {
+            if (!specified.empty())
+                last = "cannot read " + u8str(p);
             continue;
+        }
         std::unique_ptr<AccessFiles> a(new AccessFiles);
         bool ok = fs::is_directory(p, ec) ? a->load_dir(u8str(p), last, "engine.xml")
                                           : a->load_pe(u8str(p), last, "engine.xml");
         if (ok && a->files_.count("editor.xml"))
             return a;
+        if (ok)
+            last = u8str(p) + " does not contain editor.xml";
     }
     error = last;
     return nullptr;

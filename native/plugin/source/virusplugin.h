@@ -618,6 +618,9 @@ private:
         std::string path;
         int part = 0; // 0-based
         int pending = -1; // automation throttle (audio thread): the latest value waiting to be sent
+        int minimum = 0, maximum = 127;
+        bool bounded = false;
+        std::optional<ParameterEncoding> encoding; // resolved once; no model/string walk in process()
     };
     // automation budget: a flood of parameter messages (stress test: 32 lanes per block, ~2750/s) hangs the
     // Virus' audio until a power cycle - changes are coalesced per parameter and sent at <= AUTOMATION_RATE/s

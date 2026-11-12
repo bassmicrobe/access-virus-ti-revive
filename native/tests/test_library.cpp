@@ -149,8 +149,19 @@ TEST(library_dir_xdg_documents)
     CHECK(vti::library_dir() == dir.string() + "/Dokumente" + tail);
     fs::create_directories(dir.string() + "/Documents" + tail); // an earlier install's folder wins
     CHECK(vti::library_dir() == dir.string() + "/Documents" + tail);
-    auto roots = vti::library_roots(); // Linux: only the personal one (no Access installer puts libraries elsewhere)
+    auto roots = vti::library_roots();
+#ifdef __APPLE__
+    // macOS also has the user and system Application Support roots, whether or not their folders exist yet.
+    CHECK(roots.size() == 3);
+    if (roots.size() == 3) {
+        CHECK(roots[0].menu == "Personal Libraries" && roots[0].dir == vti::library_dir());
+        CHECK(roots[1].menu == "User Libraries" && roots[1].dir == dir.string() + "/Library/Application Support" + tail);
+        CHECK(roots[2].menu == "Public Libraries" && roots[2].dir == "/Library/Application Support" + tail);
+    }
+#else
+    // Linux: only the personal one (no Access installer puts libraries elsewhere).
     CHECK(roots.size() == 1 && roots[0].menu == "Personal Libraries" && roots[0].dir == vti::library_dir());
+#endif
     fs::remove_all(dir);
 }
 #endif

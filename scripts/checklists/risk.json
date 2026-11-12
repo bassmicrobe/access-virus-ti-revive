@@ -19,7 +19,7 @@
              "scripts/vm.sh", "scripts/vm-start-cc.cmd", "scripts/vm-winusb-install.ps1", "scripts/win11/*", "scripts/win10ref/*",
              "scripts/virus.xml", "scripts/linux-usb-bounce.sh", "scripts/giveback-loop.sh", "scripts/hil.sh", "scripts/hil-win.ps1", "scripts/hil-win.cmd",
              "scripts/hil-mac.command", "scripts/mutation.sh", "scripts/latency-orig.sh", "scripts/latency-native.sh", "scripts/latency-wine.sh",
-             ".github/workflows/dev-mac.yml"],
+             ".github/workflows/dev-mac.yml", ".github/workflows/fork-checks.yml"],
    "class": "A"},
   {"why": "0.7.x and research code: not shipped since 0.8.0",
    "paths": ["src/wrapper/*", "src/vtihook/*", "src/mac/*", "src/broker/vtiflash.c", "src/broker/vtisend.c",

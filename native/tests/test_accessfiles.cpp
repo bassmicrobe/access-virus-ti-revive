@@ -146,7 +146,11 @@ Bytes fake_pe(const std::vector<std::pair<std::string, std::string>> &xml, bool 
 void no_installation(Env &env, const fs::path &home)
 {
     env.set("HOME", home.string());
-    env.unset("VTI_ACCESS_DIR"), env.unset("VTI_ACCESS_CC"), env.unset("WINEPREFIX"), env.unset("XDG_CONFIG_HOME");
+    // Explicit overrides isolate the fixture even on a Mac with a real system-wide Access installation. Changing
+    // HOME alone cannot hide /Library or /Applications, and the test must never read those files by accident.
+    env.set("VTI_ACCESS_DIR", (home / "no-plugin-installation").string());
+    env.set("VTI_ACCESS_CC", (home / "no-control-center-installation").string());
+    env.unset("WINEPREFIX"), env.unset("XDG_CONFIG_HOME");
 }
 } // namespace
 
@@ -168,6 +172,30 @@ TEST(accessfiles_resource_folder)
     CHECK(a->names().size() == 2 && a->source() == t.dir.string());
     fs::create_directories(t.dir / "empty");
     CHECK(!AccessFiles::open((t.dir / "empty").string(), err) && !err.empty());
+}
+
+TEST(accessfiles_explicit_sources_are_authoritative)
+{
+    TempDir t("explicit");
+    Env env;
+    no_installation(env, t.dir / "home");
+    const fs::path specified = t.dir / "specified", other = t.dir / "other";
+    write(other / "remotedevice.xml", REMOTE);
+    fs::create_directories(specified);
+    env.set("VTI_ACCESS_DIR", other.string());
+    std::string err;
+    CHECK(!AccessFiles::open(specified.string(), err)); // a bad hint must not silently load another installation
+    CHECK(err.find(specified.string()) != std::string::npos);
+    write(specified / "remotedevice.xml", REMOTE);
+    auto a = AccessFiles::open(specified.string(), err);
+    CHECK(a && a->source() == specified.string() && err.empty());
+    env.set("VTI_ACCESS_DIR", (t.dir / "missing").string());
+    CHECK(!AccessFiles::open("", err) && err.find((t.dir / "missing").string()) != std::string::npos);
+    a = AccessFiles::open(specified.string(), err); // an explicit hint wins over even a bad environment override
+    CHECK(a && a->source() == specified.string() && err.empty());
+    env.set("VTI_ACCESS_DIR", other.string());
+    a = AccessFiles::open("", err);
+    CHECK(a && a->source() == other.string() && err.empty());
 }
 
 // E361: the original's device types use their own files - the Snow its 4-part editor (editorPR.xml), its device
@@ -261,12 +289,20 @@ TEST(accessfiles_pe_image)
     // open() with the folder that holds the DLL (the Windows / Wine layout)
     auto b = AccessFiles::open(t.dir.string(), err);
     CHECK(b && b->source() == dll.string());
-    // and through WINEPREFIX
+    // The environment override works on every platform, even with a real system installation elsewhere.
     fs::path wine = t.dir / "prefix";
-    write(wine / "drive_c/Program Files/Access Music/Virus TI/Common/Virus Control.dll", fake_pe({{"REMOTEDEVICE.XML", REMOTE}}));
-    env.set("WINEPREFIX", wine.string());
+    fs::path common = wine / "drive_c/Program Files/Access Music/Virus TI/Common";
+    write(common / "Virus Control.dll", fake_pe({{"REMOTEDEVICE.XML", REMOTE}}));
+    env.set("VTI_ACCESS_DIR", common.string());
     auto c = AccessFiles::open("", err);
+    CHECK(c && c->source() == (common / "Virus Control.dll").string());
+#ifndef __APPLE__
+    // Linux also discovers it through WINEPREFIX when no explicit source was selected.
+    env.unset("VTI_ACCESS_DIR");
+    env.set("WINEPREFIX", wine.string());
+    c = AccessFiles::open("", err);
     CHECK(c && c->get("remotedevice.xml").size() == REMOTE.size());
+#endif
 }
 
 TEST(accessfiles_pe_page_b)
@@ -299,12 +335,15 @@ TEST(accessfiles_pe32_refused)
     no_installation(env, t.dir / "home");
     std::string err;
     CHECK(!AccessFiles::open(x86.string(), err));
-    // the reason survives the standard places tried after the hint
+    // An explicit invalid source is reported even if another installation is available.
     CHECK(err.find("32-bit") != std::string::npos && err.find(x86.string()) != std::string::npos);
-    // a 64-bit one later in the search order is taken
     env.set("VTI_ACCESS_DIR", x64.parent_path().string());
-    auto a = AccessFiles::open(x86.parent_path().string(), err);
+    CHECK(!AccessFiles::open(x86.parent_path().string(), err));
+    CHECK(err.find("32-bit") != std::string::npos && err.find(x86.string()) != std::string::npos);
+    auto a = AccessFiles::open("", err);
     CHECK(a && a->source() == x64.string());
+    env.set("VTI_ACCESS_DIR", x86.parent_path().string());
+    CHECK(!AccessFiles::open("", err) && err.find("32-bit") != std::string::npos);
 }
 
 TEST(accessfiles_pe32_control_center)
@@ -327,11 +366,11 @@ TEST(accessfiles_pe_errors)
     Env env;
     no_installation(env, t.dir / "home");
     std::string err;
-    // open() goes on to the standard places after the hint and reports the last error, so only the failure and a
-    // message are checked; the PE parser's error paths run all the same
-    auto fails = [&](const fs::path &p, const char *) {
+    // The parser's own diagnostic must survive; another installed copy must not hide this selected file's error.
+    auto fails = [&](const fs::path &p, const char *why) {
         err.clear();
-        return !AccessFiles::open(p.string(), err) && !err.empty();
+        return !AccessFiles::open(p.string(), err) && err.find(why) != std::string::npos &&
+               err.find(p.string()) != std::string::npos;
     };
     write(t.dir / "text.dll", std::string(100, 'x'));
     CHECK(fails(t.dir / "text.dll", "not a PE"));
@@ -351,11 +390,14 @@ TEST(accessfiles_open_nothing)
     CHECK(!AccessFiles::open("", err) && !err.empty());
     err.clear();
     CHECK(!AccessFiles::open_control_center(err) && !err.empty());
+#ifndef __APPLE__
     // the installer's note of where it put the Access software (XDG config), pointing to a fake folder
+    env.unset("VTI_ACCESS_DIR");
     write(t.dir / "access" / "remotedevice.xml", REMOTE);
     write(t.dir / ".config" / "tirevive" / "access-dir", (t.dir / "access").string() + "\n");
     auto a = AccessFiles::open("", err);
     CHECK(a && a->source() == (t.dir / "access").string());
+#endif
 }
 
 TEST(accessfiles_control_center)
@@ -368,15 +410,16 @@ TEST(accessfiles_control_center)
     write(t.dir / "cc" / "engine.xml", std::string("<Engine/>"));
     env.set("VTI_ACCESS_CC", (t.dir / "cc").string());
     CHECK(!AccessFiles::open_control_center(err)); // editor.xml missing
+    CHECK(err.find("editor.xml") != std::string::npos && err.find((t.dir / "cc").string()) != std::string::npos);
     write(t.dir / "cc" / "editor.xml", std::string("<Editor/>"));
     auto a = AccessFiles::open_control_center(err);
-    CHECK(a && a->get("engine.xml").size() == 9);
+    CHECK(a && a->get("engine.xml").size() == 9 && err.empty());
     // next to the plug-in's DLL in the installer's Common folder (an exe with both resources)
     env.unset("VTI_ACCESS_CC");
     fs::path common = t.dir / "prefix/drive_c/Program Files/Access Music/Virus TI/Common";
     write(common / "Virus Control.dll", fake_pe({{"REMOTEDEVICE.XML", REMOTE}}));
     write(common / "Virus Control Center.exe", fake_pe({{"ENGINE.XML", "<Engine/>"}, {"EDITOR.XML", "<Editor/>"}}));
-    env.set("WINEPREFIX", (t.dir / "prefix").string());
+    env.set("VTI_ACCESS_DIR", common.string());
     auto b = AccessFiles::open_control_center(err);
     CHECK(b && b->source() == (common / "Virus Control Center.exe").string());
 }

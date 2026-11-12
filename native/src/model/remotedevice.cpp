@@ -161,6 +161,62 @@ const MidiMessage *RemoteDevice::message(const std::string &id) const
     return nullptr;
 }
 
+std::optional<ParameterEncoding> RemoteDevice::compile_encoding(const std::string &path) const
+{
+    const Parameter *p = find(path);
+    const MidiMessage *m = p ? message(p->message) : nullptr;
+    if (!m || m->bytes.empty() || m->bytes.size() > ParameterEncoding::capacity)
+        return std::nullopt;
+    int ctrl = -1;
+    for (const auto &b : m->bytes)
+        for (const auto &kv : b.controllers)
+            if (kv.second == path)
+                ctrl = kv.first; // same last-match rule as encode_into (controller aliases are allowed)
+    if (ctrl < 0)
+        return std::nullopt;
+    ParameterEncoding e;
+    e.size_ = (uint8_t)m->bytes.size();
+    for (size_t i = 0; i < m->bytes.size(); i++) {
+        const auto &b = m->bytes[i];
+        const auto &c = b.content;
+        const uint16_t bit = (uint16_t)(1u << i);
+        if (c == "controller" || c == "polypressure") {
+            e.fixed_[i] = c == "controller" ? 0xB0 : 0xA0;
+            e.channel_ |= bit;
+        } else if (c == "sysexstart")
+            e.fixed_[i] = 0xF0;
+        else if (c == "sysexend")
+            e.fixed_[i] = 0xF7;
+        else if (c == "byte")
+            e.fixed_[i] = (uint8_t)(b.tag < 0 ? 0 : b.tag);
+        else if (c == "controllerid")
+            e.fixed_[i] = (uint8_t)ctrl;
+        else if (c == "deviceid")
+            e.device_ |= bit;
+        else if (c == "part")
+            e.part_ |= bit;
+        else if (c == "value")
+            e.value_ |= bit;
+        else
+            return std::nullopt;
+    }
+    return e;
+}
+
+size_t ParameterEncoding::encode_into(int value, int part, uint8_t *out, size_t cap, int device_id) const noexcept
+{
+    if (!out || !size_ || size_ > cap)
+        return 0;
+    const uint8_t v = (uint8_t)(value & 0x7F), p = (uint8_t)part, d = (uint8_t)device_id;
+    const uint8_t ch = (uint8_t)(part & 15);
+    for (size_t i = 0; i < size_; i++) {
+        const uint16_t bit = (uint16_t)(1u << i);
+        out[i] = value_ & bit ? v : part_ & bit ? p : device_ & bit ? d :
+                 channel_ & bit ? (uint8_t)(fixed_[i] | ch) : fixed_[i];
+    }
+    return size_;
+}
+
 size_t RemoteDevice::encode_into(const std::string &path, int value, int part, uint8_t *out, size_t cap, int device_id) const
 {
     const Parameter *p = find(path);

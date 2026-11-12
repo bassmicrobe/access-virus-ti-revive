@@ -8,37 +8,7 @@
 // "Processor State". RestoreState translates the old form; the content is the original's state format, which the
 // plug-in reads unchanged.
 #include "public.sdk/source/vst/auwrapper/auwrapper.mm"
-
-namespace Steinberg {
-namespace Vst {
-
-class TIReviveAU : public AUWrapper
-{
-public:
-	TIReviveAU (ComponentInstanceRecord* ci) : AUWrapper (ci) {}
-
-	ComponentResult RestoreState (CFPropertyListRef inData) override
-	{
-		if (inData && CFGetTypeID (inData) == CFDictionaryGetTypeID ())
-		{
-			CFDictionaryRef dict = static_cast<CFDictionaryRef> (inData);
-			CFStringRef processor = CFSTR ("Processor State");
-			CFTypeRef old = CFDictionaryGetValue (dict, CFSTR (kAUPresetDataKey));
-			if (!CFDictionaryContainsKey (dict, processor) && old && CFGetTypeID (old) == CFDataGetTypeID ())
-			{
-				CFMutableDictionaryRef m = CFDictionaryCreateMutableCopy (nullptr, 0, dict);
-				CFDictionarySetValue (m, processor, old); // no "Controller State": single component plug-in
-				ComponentResult r = AUWrapper::RestoreState (m);
-				CFRelease (m);
-				return r;
-			}
-		}
-		return AUWrapper::RestoreState (inData);
-	}
-};
-
-} // namespace Vst
-} // namespace Steinberg
+#include "tirevive_au.h"
 
 extern "C" {
 __attribute__ ((visibility ("default"))) void* TIReviveVirusControlFactory (const AudioComponentDescription* inDesc)

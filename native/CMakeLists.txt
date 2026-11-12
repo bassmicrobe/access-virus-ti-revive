@@ -1,6 +1,11 @@
 # virus-ti-native - native rewrite of the Access Virus TI plug-in (docs/plan.md)
 cmake_minimum_required(VERSION 3.25)
 project(virus-ti-native VERSION 0.8.41 LANGUAGES C CXX) # = the TI Revive release it ships with
+if(APPLE)
+    # These targets own .mm files too; enabling the language only inside VSTGUI's subdirectory leaves Makefile
+    # generators without an Objective-C++ compile rule for the AU and native host.
+    enable_language(OBJCXX)
+endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Windows: static C/C++ runtime, so the plug-in and the ASIO driver run without the VC++ redistributable
@@ -122,7 +127,7 @@ if(APPLE AND VTI_NATIVE_AU)
         set(VTI_AU_SUBTYPE ${subtype})
         set(VTI_AU_BUNDLE_ID ${bundle_id})
         configure_file(au/Info.plist.in ${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist @ONLY)
-        set_target_properties(${target} PROPERTIES CXX_STANDARD 23
+        set_target_properties(${target} PROPERTIES CXX_STANDARD 23 OBJCXX_STANDARD 23
             BUNDLE TRUE BUNDLE_EXTENSION component OUTPUT_NAME "${name}"
             MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/${target}-Info.plist
             LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/AU)
@@ -155,7 +160,7 @@ endif()
 
 # unit tests (no Virus needed; tests on the Access files skip without them): ctest --test-dir build
 enable_testing()
-add_executable(vtitests tests/main.cpp tests/test_usbmidi.cpp tests/test_state.cpp tests/test_model.cpp
+add_executable(vtitests tests/main.cpp tests/test_usbmidi.cpp tests/test_state.cpp tests/test_model.cpp tests/test_remotedevice.cpp
                tests/test_access.cpp tests/test_automation.cpp tests/test_upgrade.cpp tests/test_resampler.cpp tests/test_sidechain.cpp tests/test_helptext.cpp tests/test_devicestatus.cpp $<$<PLATFORM_ID:Linux>:tests/test_resetguard.cpp> tests/test_giveback.cpp tests/test_stallfill.cpp tests/test_ccrestore.cpp
                tests/test_library.cpp tests/test_decode.cpp tests/test_ccskin.cpp tests/test_memsync.cpp
                tests/test_cc.cpp tests/test_arpactions.cpp tests/test_broker.cpp tests/test_audioin.cpp tests/test_panelfollow.cpp tests/test_editor.cpp
@@ -172,6 +177,22 @@ add_executable(vtitests tests/main.cpp tests/test_usbmidi.cpp tests/test_state.c
                tests/test_comparestate.cpp tests/test_randomizer.cpp tests/test_trafficring.cpp tests/test_capture.cpp tests/test_keyport.cpp tests/test_closeseq.cpp tests/test_utf8.cpp tests/test_winusb_errors.cpp)
 target_link_libraries(vtitests PRIVATE vticore)
 add_test(NAME vtitests COMMAND vtitests)
+
+if(APPLE)
+    add_executable(vti_au_lifecycle_tests au/test_lifecycle.mm)
+    target_link_libraries(vti_au_lifecycle_tests PRIVATE "-framework AudioToolbox" "-framework CoreFoundation")
+    add_test(NAME au_lifecycle COMMAND vti_au_lifecycle_tests)
+    # An explicit-component host: validates this AU without scanning the user's other plug-ins.
+    add_executable(vti_autest tools/autest.mm)
+    target_compile_options(vti_autest PRIVATE -fobjc-arc)
+    target_link_libraries(vti_autest PRIVATE "-framework Cocoa" "-framework AudioToolbox" "-framework AudioUnit")
+endif()
+
+option(VTI_BUILD_BENCHMARKS "Build developer microbenchmarks (not installed)" OFF)
+if(VTI_BUILD_BENCHMARKS)
+    add_executable(encodingbench tools/encodingbench.cpp)
+    target_link_libraries(encodingbench PRIVATE vticore)
+endif()
 
 # test host for the native plug-in (R3 checks)
 if(NOT TARGET sdk_hosting)

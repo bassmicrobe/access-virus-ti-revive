@@ -5,6 +5,7 @@
 //   MIDI message templates (CC, poly pressure, parameter SysEx per bank, single/multi dumps with byte layouts),
 //   soft-knob mapping and initialisation lists.
 #pragma once
+#include <array>
 #include <cstdint>
 #include <map>
 #include <unordered_map>
@@ -91,6 +92,21 @@ struct MidiMessage {
     std::vector<size_t> checksum_bytes;
 };
 
+// A single-parameter transport resolved off the audio thread. It owns its fixed bytes and field masks, so using it
+// needs neither the device model, string lookups, allocation nor locks. Long/unknown transport formats stay on the
+// existing encoder; 16 is the audio path's fixed event payload capacity.
+class ParameterEncoding {
+public:
+    static constexpr size_t capacity = 16;
+    size_t encode_into(int value, int part, uint8_t *out, size_t cap, int device_id = 0x10) const noexcept;
+
+private:
+    friend class RemoteDevice;
+    std::array<uint8_t, capacity> fixed_{};
+    uint16_t value_ = 0, part_ = 0, device_ = 0, channel_ = 0;
+    uint8_t size_ = 0;
+};
+
 // automation.xml: the original plug-in's VST3 parameter ids. id = ParamID, title as the original shows it
 // ("[<part>] <shortname>"), unit "Part NN/".
 struct AutomationEntry {
@@ -133,6 +149,9 @@ public:
     std::vector<uint8_t> encode(const std::string &path, int value, int part, int device_id = 0x10) const;
     // Same without allocating (realtime use): writes up to `cap` bytes, returns the length (0 = none).
     size_t encode_into(const std::string &path, int value, int part, uint8_t *out, size_t cap, int device_id = 0x10) const;
+    // Resolve a bounded single-parameter transport once at initialization, then use ParameterEncoding::encode_into
+    // in process(). No protocol/range changes: it produces exactly the bytes the existing encoder would produce.
+    std::optional<ParameterEncoding> compile_encoding(const std::string &path) const;
     // Inverse of encode: the parameter changes in one message from the Virus (CC = page A, poly pressure = page B,
     // parameter SysEx pages 6E..74). Several parameters can share a controller (mode-dependent meaning); all are
     // returned. part = MIDI channel / SysEx part byte (0-based; 16 = global page / part "none").

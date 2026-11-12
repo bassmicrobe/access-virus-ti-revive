@@ -7,31 +7,52 @@
 // loaded from outside (the 0.8.35 fix, on an older build); AUTEST_POOL=1 prints the pending autorelease pool.
 // Build: clang++ -std=c++17 -fobjc-arc -o autest autest.mm -framework Cocoa -framework AudioToolbox -framework AudioUnit
 // usage: autest <X.component> [--load state.plist] [--save state.plist] [--png view.png] [--seconds N] [--no-notes]
-//               [--delete-open N]
+//               [--delete-open N] [--expect-param ID NORMALIZED] [--expect-initialize-error]
 #import <AudioToolbox/AudioToolbox.h>
 #import <AudioUnit/AUCocoaUIView.h>
 #import <Cocoa/Cocoa.h>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 extern "C" void _objc_autoreleasePoolPrint(void); // libobjc debug output (stderr): what the pool still holds
 #include <string>
+#include <utility>
 #include <vector>
 
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
-        return fprintf(stderr, "usage: autest <X.component> [--load f] [--save f] [--png f] [--seconds N] [--no-notes]\n"), 1;
+        return fprintf(stderr, "usage: autest <X.component> [--load f] [--save f] [--png f] [--seconds N] [--no-notes] "
+                               "[--expect-param ID NORMALIZED] [--expect-initialize-error]\n"), 1;
     setvbuf(stdout, nullptr, _IONBF, 0); // every line reaches the log, also when the host crashes
     const char *load = nullptr, *save = nullptr, *png = nullptr;
     int secs = 2, delete_open = -1;
     bool notes = true;
+    bool expect_initialize_error = false;
+    std::vector<std::pair<AudioUnitParameterID, AudioUnitParameterValue>> expected_parameters;
     for (int i = 2; i < argc; i++) {
         if (!strcmp(argv[i], "--no-notes")) // e.g. to watch a bank sync run (notes pause it)
             notes = false;
+        else if (!strcmp(argv[i], "--expect-initialize-error"))
+            expect_initialize_error = true;
+        else if (!strcmp(argv[i], "--expect-param")) {
+            if (i + 2 >= argc)
+                return fprintf(stderr, "--expect-param needs ID and normalized value\n"), 2;
+            char *end = nullptr;
+            const char *id_text = argv[++i];
+            unsigned long id = std::strtoul(id_text, &end, 10);
+            if (!end || end == id_text || *end || id > UINT32_MAX)
+                return fprintf(stderr, "invalid parameter id\n"), 2;
+            const char *value_text = argv[++i];
+            float value = std::strtof(value_text, &end);
+            if (!end || end == value_text || *end || !std::isfinite(value) || value < 0 || value > 1)
+                return fprintf(stderr, "invalid normalized parameter value\n"), 2;
+            expected_parameters.emplace_back((AudioUnitParameterID)id, value);
+        }
         else if (i + 1 >= argc)
             break;
         else if (!strcmp(argv[i], "--load")) load = argv[++i];
@@ -61,8 +82,10 @@ int main(int argc, char **argv)
         AudioUnit au = nullptr;
         OSStatus st = comp ? AudioComponentInstanceNew(comp, &au) : -1;
         printf("open %s -> %d\n", [ac[@"name"] UTF8String], (int)st);
-        if (st)
-            return 1;
+        if (st) {
+            printf("instance open %s\n", expect_initialize_error ? "failed as expected" : "FAILED");
+            return expect_initialize_error ? 0 : 1;
+        }
         auto get = [&](AudioUnitPropertyID id, AudioUnitScope sc, AudioUnitElement el, void *data, UInt32 *size) {
             return AudioUnitGetProperty(au, id, sc, el, data, size);
         };
@@ -73,6 +96,13 @@ int main(int argc, char **argv)
         set(kAudioUnitProperty_MaximumFramesPerSlice, kAudioUnitScope_Global, 0, &maxf, sz);
         st = AudioUnitInitialize(au);
         printf("initialize -> %d\n", (int)st);
+        if (st || expect_initialize_error) {
+            bool expected = st && expect_initialize_error;
+            if (!st) AudioUnitUninitialize(au);
+            OSStatus closed = AudioComponentInstanceDispose(au);
+            printf("initialization-error check %s, dispose -> %d\n", expected && !closed ? "PASS" : "FAIL", (int)closed);
+            return expected && !closed ? 0 : 1;
+        }
         if (load) { // an AU state file (plist)
             NSData *data = [NSData dataWithContentsOfFile:[NSString stringWithUTF8String:load]];
             CFPropertyListRef pl = data ? (__bridge_retained CFPropertyListRef)[NSPropertyListSerialization
@@ -80,6 +110,28 @@ int main(int argc, char **argv)
                                         : nullptr;
             st = pl ? set(kAudioUnitProperty_ClassInfo, kAudioUnitScope_Global, 0, &pl, sizeof pl) : -1;
             printf("ClassInfo set from %s -> %d\n", load, (int)st);
+            if (pl) CFRelease(pl);
+            if (st) {
+                AudioUnitUninitialize(au);
+                AudioComponentInstanceDispose(au);
+                return 1;
+            }
+        }
+        // Read-only checks immediately after initialize/restore, before timers or
+        // rendering can hide a stale AU cache. These never set a parameter.
+        bool parameters_ok = true;
+        for (const auto &expect : expected_parameters) {
+            AudioUnitParameterValue value = 0;
+            OSStatus status = AudioUnitGetParameter(au, expect.first, kAudioUnitScope_Global, 0, &value);
+            bool ok = !status && std::fabs(value - expect.second) <= 1e-5f;
+            printf("parameter %u expected %.9g observed %.9g status %d: %s\n", (unsigned)expect.first,
+                   expect.second, value, (int)status, ok ? "PASS" : "FAIL");
+            parameters_ok = parameters_ok && ok;
+        }
+        if (!parameters_ok) {
+            AudioUnitUninitialize(au);
+            AudioComponentInstanceDispose(au);
+            return 1;
         }
         // play: C4 on/off per second, render 512-frame blocks in real time
         AudioTimeStamp ts = {};

@@ -28,9 +28,10 @@ struct KnobTemplate {
 
 class AccessFiles {
 public:
-    // Locate and open the Access installation. `hint` may name Virus Control.dll / .bundle or its folder; empty =
-    // search the standard locations (and $VTI_ACCESS_DIR). Returns nullptr and sets `error` if nothing is found.
-    // Only the 64-bit (PE32+) Virus Control.dll counts; a 32-bit one is skipped and named in `error` (E345).
+    // Open the Access installation. A nonempty `hint` (Virus Control.dll / .bundle or its folder) is authoritative;
+    // otherwise $VTI_ACCESS_DIR overrides the standard locations. A bad explicit source never falls back silently.
+    // Returns nullptr and sets `error` on failure, clears it on success. Only the 64-bit (PE32+) Virus Control.dll
+    // counts; a 32-bit candidate is rejected and named in `error` if no automatic candidate succeeds (E345).
     static std::unique_ptr<AccessFiles> open(const std::string &hint, std::string &error);
     // The skin of Access' "Virus Control Center" (layout editor.xml + engine.xml and its PNGs, resources of
     // "Virus Control Center.exe"; a folder with those files also works), for TI Revive's Control Center app.

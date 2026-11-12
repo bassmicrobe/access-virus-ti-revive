@@ -71,20 +71,33 @@ TEST(utf8_path_round_trip)
 TEST(utf8_files_with_any_name)
 {
     const std::string dir = fresh_dir("vtitests-utf8-files");
-    std::vector<std::string> made;
+    std::vector<fs::path> made;
     for (const std::string &s : {kJapanese, kDecomposed, kComposed, kEmoji}) {
         const std::string p = dir + "/" + s + ".txt";
         CHECK(touch(p));
         CHECK(fs::exists(u8path(p)));
-        made.push_back(s + ".txt");
+        made.push_back(u8path(p));
     }
-    std::vector<std::string> seen;
+    std::vector<fs::path> seen;
     std::error_code ec;
     for (fs::directory_iterator it(u8path(dir), ec), end; !ec && it != end; it.increment(ec))
-        seen.push_back(u8str(it->path().filename()));
-    std::sort(made.begin(), made.end());
-    std::sort(seen.begin(), seen.end());
-    CHECK(seen == made);
+        seen.push_back(it->path());
+    CHECK(!ec);
+    // APFS may treat NFC and NFD spellings as one file and may return either byte spelling. UTF-8 conversion
+    // itself is tested above; here verify every spelling opens exactly one enumerated file, not a guessed count.
+    auto same_file = [](const fs::path &a, const fs::path &b) {
+        std::error_code err;
+        bool same = fs::equivalent(a, b, err);
+        CHECK(!err);
+        return same;
+    };
+    std::vector<fs::path> distinct;
+    for (const auto &p : made) {
+        CHECK(std::count_if(seen.begin(), seen.end(), [&](const fs::path &q) { return same_file(p, q); }) == 1);
+        if (std::none_of(distinct.begin(), distinct.end(), [&](const fs::path &q) { return same_file(p, q); }))
+            distinct.push_back(p);
+    }
+    CHECK(seen.size() == distinct.size());
     remove_dir(dir);
 }
 
