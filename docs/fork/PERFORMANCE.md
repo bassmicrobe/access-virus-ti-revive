@@ -80,7 +80,7 @@ The manual lead override and the Options algorithm are upstream timing work, tes
 
 ## Verification status
 
-Windows PowerShell 5.1 and PowerShell 7 each passed all 26 fake-device assertions in [fork CI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43153335087). The tests parse the installer scripts and mock every PnP/native call; they do not exercise a real legacy driver unload.
+Windows PowerShell 5.1 and PowerShell 7 each passed all 26 fake-device assertions in [fork CI](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43156387356). The tests parse the installer scripts and mock every PnP/native call; they do not exercise a real legacy driver unload.
 
 The rebuilt AU passed the read-only initial Cutoff assertion (parameter 153 = 1). A subsequent isolated AU test changed that parameter by 1/127, saved the local state, restored 1 and received USB audio; render, local edit, local restore and cleanup all passed. This verifies the AU API/processor workflow; hardware parameter echo was not independently measured. Full project-state recall was deliberately not exercised.
 
@@ -88,4 +88,16 @@ A copied test component with its embedded VST3 removed returned `kAudioUnitErr_F
 
 Local native CMake/CTest passed all four suites: 655 native tests (one platform-specific skip, zero failed checks), 36 synthetic AU lifecycle checks, the plug-in factory/class check, and 125 Python tooling tests. Both normal and Snow AU targets, VST3, Control Center, CLI, explicit hosts and the encoding benchmark built successfully on arm64.
 
-Final post-test bank checks and cross-platform package build results are recorded in the final verification update. Windows/Intel/Linux/Snow hardware, long-running DAW sessions, project save/reopen and subjective audio quality remain separate verification targets.
+The final read-only bank fingerprint check after fork tests reported all four banks / 512 programs up to date with the backed-up cache. Stored patches were unchanged.
+
+The complete [package build at `f27645c`](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43156396159) passed:
+
+| Platform | Build/test result | Runtime scope |
+|---|---|---|
+| macOS | Universal AU/VST3, Control Center, CLI, broker and `.pkg`/ZIP generated; arm64 and x86_64 slices verified | Local arm64 / POLAR tests above; Intel runtime untested |
+| Windows x64 | MSVC native targets, CTest (including installer/Python tests), broker, MSI and setup EXE passed | CI/mocks only; no legacy-driver hardware unload |
+| Linux x64 | Native build with project warnings treated as errors, CTest and distribution package passed | CI only; no Linux/Snow hardware test here |
+
+A Windows test fixture initially expanded an explicit CRLF into CRCRLF in text mode. It now writes exact binary bytes and verifies those bytes; the production log reader was unchanged. The subsequent complete build above passed. The release job was skipped for this development branch: these are build artifacts, not a published upstream release. The installed local stable version remains 0.8.40.
+
+Windows/Intel/Linux/Snow hardware, long-running DAW sessions, project save/reopen and subjective audio quality remain separate verification targets.
