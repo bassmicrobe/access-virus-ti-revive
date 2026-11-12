@@ -25,6 +25,8 @@ concurrency: # one deploy at a time; a newer run replaces a waiting one
 
 jobs:
   build:
+    # This workflow publishes the upstream website; a fork has its own README and release policy.
+    if: github.repository == 'derpsn/access-virus-ti-revive'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,6 +41,7 @@ jobs:
           path: site/dist
 
   deploy:
+    if: github.repository == 'derpsn/access-virus-ti-revive'
     needs: build
     runs-on: ubuntu-24.04
     environment:

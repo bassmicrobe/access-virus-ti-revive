@@ -1,0 +1,8 @@
+{
+  "scope": "read-only local encoder comparison; no device contacted",
+  "models": [
+    {"model": "TI", "automation_entries": 2671, "compiled_entries": 2623, "fallback_entries": 48, "byte_comparisons": 335744, "mismatches": 0},
+    {"model": "Snow", "automation_entries": 668, "compiled_entries": 656, "fallback_entries": 12, "byte_comparisons": 83968, "mismatches": 0}
+  ],
+  "pass": true
+}

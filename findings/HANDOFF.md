@@ -3325,3 +3325,16 @@ native, GarageBand; SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.
 - After an editor was open, Virus Control.dll can hang in DLL_PROCESS_DETACH at process exit (E119); the FreeLibrary
   path (what DAWs do) is fine.
 - WinUSB / Windows: MI_00 bound to WinUSB too (broker streams audio itself, E075-E078); never WASAPI clocks.
+
+
+## 2026-11-12 — bassmicrobe fork: native AU, RT encoding, installer guard
+
+- Fork: https://github.com/bassmicrobe/access-virus-ti-revive . Development branch: `codex/mac-performance-issues-20261112`.
+- Base: upstream `round-0.8.41` ef8491a plus main 1b6c6ef documentation merge. Keep MIT/attribution. Upstream low latency and earlier fixes remain credited upstream.
+- Native changes: AU cache synchronization after activation/processor-only restore; defensive partial-load/preset checks; compiled fixed parameter transports with legacy fallback; cached range bounds; explicit Access resource overrides; macOS Objective-C++ generator fix.
+- Windows: refuse legacy driver changes when a present binding is active or a PnP query is inconclusive; no forced Access uninstall/device removal. Fake-device PowerShell5/7 tests pass, no Windows hardware migration claim.
+- New fork docs: Japanese/English README, preserved upstream README, changes/measurement/complete ten-issue ledger. No issue is closed by this work. Issue32 remains a licensing proposal.
+- Local setup: M1 Max / macOS27.2 / TI POLAR5.1.7.00. Stored RAM512 was backed up outside Git. Only explicit TI Revive hosts are used; no all-plug-in DAW scan. No firmware, flash or stored-bank writes were performed.
+- Measurements: encoder helper37.535x in the synthetic fixture,419712 real-file byte comparisons with zero mismatch; two short VST3 lead tests show92.880/58.050ms onset medians. These are not whole-app CPU or long-term DAW claims. See E503..E509 and docs/fork/PERFORMANCE.md.
+- Verification in progress: full native CTest platform-specific test expectations, final bank readback, final fork CI/build. Update docs with actual results before declaring a build ready.
+- Installation: existing stable0.8.40 stays installed; fork components are built/tested from their explicit build paths. Do not copy private banks, Access resources, personal paths or raw captures into Git.

@@ -56,8 +56,10 @@ class Preview(unittest.TestCase):
             sitebuild.PREVIEW_NEW.update(old)
 
     def test_the_text_matches_the_readme(self):
-        # README and site say the same (the README block is removed by hand at the final release)
-        with open(os.path.join(HERE, "..", "..", "README.md")) as f:
+        # The fork has its own entry point; the retained upstream README describes the upstream preview/site.
+        root = os.path.join(HERE, "..", "..")
+        retained = os.path.join(root, "README.upstream.md")
+        with open(retained if os.path.exists(retained) else os.path.join(root, "README.md")) as f:
             readme = " ".join(l[2:] if l.startswith("> ") else l for l in f.read().split("\n")) # quote blocks
         readme = " ".join(readme.split())
         for v, new in sitebuild.PREVIEW_NEW.items():

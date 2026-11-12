@@ -1,0 +1,8 @@
+{
+  "scope": "synthetic encoding only; not whole plug-in CPU or USB latency",
+  "parameters": 384, "controllers_per_template": 128, "iterations_per_run": 1000000,
+  "repetitions": 5, "compiled_record_bytes": 26,
+  "legacy_median_ns": 363.626, "compiled_median_ns": 9.688, "speedup": 37.535,
+  "legacy_runs_ns": [362.788, 363.626, 366.608, 363.855, 361.428],
+  "compiled_runs_ns": [9.874, 9.597, 9.841, 9.667, 9.688]
+}

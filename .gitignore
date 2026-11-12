@@ -1,6 +1,8 @@
 /*
 !/.gitignore
 !/README.md
+!/README.en.md
+!/README.upstream.md
 !/LICENSE
 !/THIRD-PARTY-NOTICES.txt
 !/CITATION.cff
@@ -20,6 +22,7 @@
 !/docs/
 /docs/*
 !/docs/images/
+!/docs/fork/
 # the repository's Claude Code skills and hooks only (a contributor's local .claude settings stay out)
 !/.claude/
 /.claude/*

@@ -1,0 +1,27 @@
+{
+  "mode": "low-latency option ON, no VTI_NATIVE_A override",
+  "observed_lead_frames": 1408,
+  "sample_rate": 44100,
+  "block": 512,
+  "steady_window_seconds": [
+    15,
+    25
+  ],
+  "onsets": 10,
+  "offset_median_ms": 55.14739229024812,
+  "offset_min_ms": 55.14739229024812,
+  "offset_max_ms": 55.782312925170885,
+  "onset_times": [
+    15.05578231292517,
+    16.055147392290248,
+    17.055147392290248,
+    18.055147392290248,
+    19.055147392290248,
+    20.055147392290248,
+    21.055147392290248,
+    22.055147392290248,
+    23.055147392290248,
+    24.05532879818594
+  ],
+  "preference_restored": true
+}
