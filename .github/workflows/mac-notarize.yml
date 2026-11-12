@@ -1,0 +1,212 @@
+# Sign an existing successful build; this workflow never builds or publishes a release.
+# Configure the mac-signing environment for main-only deployment.
+# Its P12 secret must contain both Developer ID Application and Installer private keys.
+name: mac-notarize
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful build.yml run in this fork (TI-Revive-mac artifact)
+        required: true
+        type: string
+      source_sha:
+        description: Full 40-character source SHA, already merged into this fork's main
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: mac-notarize
+  cancel-in-progress: false
+
+jobs:
+  notarize:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 90
+    environment: mac-signing
+    steps:
+      - name: Initialize private runner paths
+        shell: bash
+        run: |
+          printf 'SIGNING_STATE_DIR=%s/tirevive-signing\nNOTARIZE_OUT=%s/tirevive-notarized\n' \
+            "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Check out the trusted signing tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Verify the build and download its artifact
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import shutil
+          import stat
+          import urllib.error
+          import urllib.request
+          import zipfile
+
+          def require(condition, message):
+              if not condition:
+                  raise SystemExit(message)
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          run_id, sha = os.environ['BUILD_RUN_ID'], os.environ['SOURCE_SHA'].lower()
+          require(re.fullmatch(r'[1-9][0-9]*', run_id), 'Invalid build run ID')
+          require(re.fullmatch(r'[0-9a-f]{40}', sha), 'A full source SHA is required')
+          api = os.environ['GITHUB_API_URL']
+
+          def request(path):
+              return urllib.request.Request(f'{api}/repos/{repo}/{path}', headers={
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+
+          def get(path):
+              with urllib.request.urlopen(request(path), timeout=60) as response:
+                  return json.load(response)
+
+          run = get(f'actions/runs/{run_id}')
+          require(str(run['id']) == run_id and run['status'] == 'completed'
+                  and run['conclusion'] == 'success', 'Build run must have completed successfully')
+          require(run['repository']['full_name'] == repo
+                  and run['head_repository']['full_name'] == repo
+                  and run['repository']['id'] == run['head_repository']['id'],
+                  'Build must originate in this repository')
+          require(run['event'] in ('push', 'workflow_dispatch'), 'PR builds cannot be signed')
+          require(run['head_sha'] == sha, 'Build source SHA does not match')
+          workflow = get(f"actions/workflows/{run['workflow_id']}")
+          require(workflow['path'] == '.github/workflows/build.yml', 'Run is not the release build workflow')
+          comparison = get(f'compare/{sha}...main')
+          require(comparison['status'] in ('ahead', 'identical')
+                  and comparison['merge_base_commit']['sha'] == sha,
+                  'Build source must already be an ancestor of this fork main')
+
+          artifacts = []
+          page = 1
+          while True:
+              batch = get(f'actions/runs/{run_id}/artifacts?per_page=100&page={page}')['artifacts']
+              artifacts.extend(a for a in batch if a['name'] == 'TI-Revive-mac')
+              if len(batch) < 100:
+                  break
+              page += 1
+          require(len(artifacts) == 1 and not artifacts[0]['expired'],
+                  'Exactly one unexpired TI-Revive-mac artifact is required')
+          artifact = artifacts[0]
+          origin = artifact['workflow_run']
+          require(str(origin['id']) == run_id and origin['head_sha'] == sha
+                  and origin['repository_id'] == run['repository']['id']
+                  and origin['head_repository_id'] == run['repository']['id'],
+                  'Artifact provenance does not match the build')
+          require(re.fullmatch(r'sha256:[0-9a-f]{64}', artifact.get('digest', '')),
+                  'Artifact must have a SHA256 digest')
+          require(0 < artifact['size_in_bytes'] <= 1024 ** 3, 'Artifact exceeds the size limit')
+
+          # Do not forward the GitHub token to the redirected storage URL or log its signed URL.
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          try:
+              urllib.request.build_opener(NoRedirect).open(
+                  request(f"actions/artifacts/{artifact['id']}/zip"), timeout=60)
+              raise SystemExit('Artifact download did not redirect to storage')
+          except urllib.error.HTTPError as response:
+              with response:
+                  require(response.code == 302, 'Artifact download was refused')
+                  location = response.headers['Location']
+          require(location.startswith('https://'), 'Artifact download must use HTTPS')
+          out = Path(os.environ['NOTARIZE_OUT'])
+          out.mkdir(mode=0o700)
+          archive = Path(os.environ['RUNNER_TEMP']) / 'verified-mac-artifact.zip'
+          digest, size = hashlib.sha256(), 0
+          with urllib.request.urlopen(location, timeout=120) as response, archive.open('xb') as target:
+              while chunk := response.read(1024 ** 2):
+                  size += len(chunk)
+                  require(size <= 1024 ** 3, 'Artifact download exceeds the size limit')
+                  digest.update(chunk)
+                  target.write(chunk)
+          require('sha256:' + digest.hexdigest() == artifact['digest'], 'Artifact SHA256 mismatch')
+          with zipfile.ZipFile(archive) as bundle:
+              entries = bundle.infolist()
+              require(len(entries) == 1, 'Artifact must contain exactly one release ZIP')
+              entry = entries[0]
+              require(re.fullmatch(r'TI-Revive-[0-9]+\.[0-9]+\.[0-9]+-mac\.zip', entry.filename)
+                      and not entry.is_dir()
+                      and not stat.S_ISLNK(entry.external_attr >> 16)
+                      and 0 < entry.file_size <= 1024 ** 3,
+                      'Artifact contains an unexpected release file')
+              source = Path(os.environ['RUNNER_TEMP']) / entry.filename
+              with bundle.open(entry) as incoming, source.open('xb') as target:
+                  shutil.copyfileobj(incoming, target)
+          output = out / source.name.replace('-mac.zip', '-mac-signed.zip')
+          provenance = {'repository': repo, 'build_run_id': int(run_id), 'source_sha': sha,
+                        'artifact_id': artifact['id'], 'artifact_digest': artifact['digest'],
+                        'input_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+                        'signing_tools_sha': os.environ['GITHUB_SHA']}
+          (out / 'build-provenance.json').write_text(json.dumps(provenance, indent=2) + '\n')
+          with open(os.environ['GITHUB_ENV'], 'a') as env:
+              env.write(f'TIREVIVE_SOURCE_SHA={sha}\nINPUT_ZIP={source}\nOUTPUT_ZIP={output}\n')
+          print('Verified successful build, main ancestry and artifact SHA256')
+          PY
+
+      - name: Import signing identities into an ephemeral keychain
+        env:
+          MACOS_SIGNING_CERT_P12_BASE64: ${{ secrets.MACOS_SIGNING_CERT_P12_BASE64 }}
+          MACOS_SIGNING_CERT_PASSWORD: ${{ secrets.MACOS_SIGNING_CERT_PASSWORD }}
+          ASC_PRIVATE_KEY_P8: ${{ secrets.ASC_PRIVATE_KEY_P8 }}
+        shell: bash
+        run: python3 scripts/mac-signing-keychain.py init "$SIGNING_STATE_DIR"
+
+      - name: Sign, notarize and staple the verified release
+        timeout-minutes: 75
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/mac-notarize-release.sh "$INPUT_ZIP" "$OUTPUT_ZIP"
+
+      - name: Restore keychain settings and remove signing credentials
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${SIGNING_STATE_DIR:-}" ] && [ -f scripts/mac-signing-keychain.py ]; then
+            python3 scripts/mac-signing-keychain.py cleanup "$SIGNING_STATE_DIR"
+          fi
+
+      - name: Upload the signed release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TI-Revive-mac-signed
+          path: ${{ env.OUTPUT_ZIP }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload sanitized notarization records
+        if: always() && steps.source.outcome == 'success'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TI-Revive-mac-notarization-records
+          path: ${{ env.NOTARIZE_OUT }}/*.json
+          if-no-files-found: error
+          retention-days: 14
