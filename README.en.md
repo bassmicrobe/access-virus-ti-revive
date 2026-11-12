@@ -1,12 +1,14 @@
 # TI Revive — bassmicrobe fork
 
-[日本語](README.md) · [Upstream](https://github.com/derpsn/access-virus-ti-revive) · [Changes](docs/fork/CHANGES.md) · [Measurements](docs/fork/PERFORMANCE.md) · [Issue coverage](docs/fork/ISSUES.md)
+[日本語](README.md) · [Upstream](https://github.com/derpsn/access-virus-ti-revive) · [Changes](docs/fork/CHANGES.md) · [Measurements](docs/fork/PERFORMANCE.md) · [Issue coverage](docs/fork/ISSUES.md) · [Signing and notarization](docs/fork/NOTARIZATION.md)
 
 An Apple Silicon-focused fork of TI Revive for Access Virus TI USB audio, AU/VST3 editing and automation. It builds on upstream's `round-0.8.41`; upstream's existing low-latency mode and fixes remain credited to upstream.
 
 This development fork focuses on AU parameter/state consistency, precompiled real-time automation encoding, Windows installer safeguards and reproducible diagnostics. Performance claims are scoped to the measurements in [PERFORMANCE.md](docs/fork/PERFORMANCE.md): an encoder microbenchmark is not a whole-plug-in CPU or USB-latency measurement.
 
 ## Requirements and use
+
+A [verified universal development package](https://github.com/bassmicrobe/access-virus-ti-revive/actions/runs/43160811599) passed Developer ID signing, Apple notarization (Accepted, no issues), stapling and Gatekeeper assessment. The [notarization guide](docs/fork/NOTARIZATION.md) records its scope, provenance and repeatable CI/local setup.
 
 You need a physical Virus TI-family synth, your own Access Virus TI Software Suite installer and an AU/VST3 host. macOS builds require 14.4 or later, including macOS 27. **macOS 27.2 / Apple Silicon has been runtime-tested**; see the [macOS validation guide](docs/fork/MACOS.md) for the exact scope. The plug-in is **TI Revive Virus Control**, or **TI Revive Virus Control (Snow)**. Audio flows from the hardware over USB through the plug-in into the host. The synth's DSP still generates the sound.
 

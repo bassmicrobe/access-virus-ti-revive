@@ -6,6 +6,25 @@
 # needs: Xcode (the plug-in: native/, VST3 SDK submodule; the AudioUnitSDK is fetched by CMake), curl (libusb).
 # 0.8.0: no bridge, Rosetta helper or libVirusUSB any more (scripts/mac-build-bridge.sh builds them for reference).
 set -euo pipefail
+# Keep the upstream build available for development; a requested notarized build must never fall back to it.
+case "${TIREVIVE_NOTARIZE:-0}" in
+    0) ;;
+    1)
+        [ -n "${DEVELOPER_ID_APPLICATION:-}" ] && [ -n "${DEVELOPER_ID_INSTALLER:-}" ] || {
+            echo "notarized builds require Developer ID Application and Installer identities" >&2; exit 1;
+        }
+        if [ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]; then
+            [ -z "${ASC_KEY_ID:-}${ASC_ISSUER_ID:-}${ASC_PRIVATE_KEY_PATH:-}" ] || {
+                echo "choose one notary authentication method" >&2; exit 1;
+            }
+        else
+            [ -n "${ASC_KEY_ID:-}" ] && [ -n "${ASC_ISSUER_ID:-}" ] && [ -f "${ASC_PRIVATE_KEY_PATH:-}" ] || {
+                echo "notarized builds require complete notary authentication" >&2; exit 1;
+            }
+        fi
+        ;;
+    *) echo "TIREVIVE_NOTARIZE must be 0 or 1" >&2; exit 1 ;;
+esac
 REPO="$(cd "${1:?repo dir}" && pwd)"
 VERSION="${2:?version}"
 OUT="$(mkdir -p "${3:-$REPO/../release}" && cd "${3:-$REPO/../release}" && pwd)"
@@ -114,3 +133,8 @@ cp "$REPO/src/installer-mac/Set up Access Virus TI files.command" "$REPO/src/ins
 chmod +x "$STAGE"/*.command
 (cd "$BUILD" && ditto -c -k --keepParent "TI-Revive-$VERSION-mac" "$OUT/TI-Revive-$VERSION-mac.zip")
 echo "built $OUT/TI-Revive-$VERSION-mac.zip"
+
+if [ "${TIREVIVE_NOTARIZE:-0}" = 1 ]; then
+    bash "$REPO/scripts/mac-notarize-release.sh" "$OUT/TI-Revive-$VERSION-mac.zip" \
+        "$OUT/TI-Revive-$VERSION-mac-signed.zip"
+fi

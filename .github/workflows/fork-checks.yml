@@ -28,3 +28,15 @@ jobs:
         if: matrix.shell == 'pwsh'
         shell: pwsh
         run: ./src/installer/tests/test-deviceguard.ps1
+
+  signing-tools:
+    name: macOS signing tooling regressions (no credentials)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Signing helper syntax and isolated regression tests
+        shell: bash
+        run: |
+          bash -n scripts/mac-build-release.sh scripts/mac-notarize-release.sh
+          python3 -m unittest discover -s scripts/tests -p 'test_mac_*.py'

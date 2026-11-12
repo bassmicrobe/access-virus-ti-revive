@@ -50,3 +50,7 @@ The fork has Japanese and English entry points, keeps the upstream README, separ
 - The 0.8.38 Windows `$Matches` correction, Linux Snow endpoint correction, browser number spacing, and 0.8.41 minimum-macOS package guard.
 
 See [README.upstream.md](../../README.upstream.md) and the [issue ledger](ISSUES.md) for their history and outstanding reports.
+
+## Developer ID signing and notarization
+
+The fork adds an inside-out signing/notarization helper and a main-only manual CI workflow. It verifies the successful build, source ancestry and artifact digest before importing the Application/Installer identities into an ephemeral keychain. Apple accepted the real package with no issues; stapling, Gatekeeper, cleanup and local macOS27.2 verification passed. Local release builds can request this path with `TIREVIVE_NOTARIZE=1`. The fork skips upstream's ad-hoc tag-publishing job. See [NOTARIZATION.md](NOTARIZATION.md).
